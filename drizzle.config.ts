@@ -5,9 +5,13 @@ import { defineConfig } from "drizzle-kit";
 // em runtime — assim a configuração do Drizzle "enxerga" as mesmas variáveis.
 loadEnvConfig(process.cwd());
 
-if (!process.env.DATABASE_URL) {
+// Prefere DIRECT_URL (porta 5432) — drizzle-kit usa prepared statements e
+// o transaction pooler (6543) não suporta. Fallback pra DATABASE_URL.
+const migrationsUrl = process.env.DIRECT_URL ?? process.env.DATABASE_URL;
+
+if (!migrationsUrl) {
   throw new Error(
-    "DATABASE_URL não definida. Configure .env.local antes de rodar migrations.",
+    "DIRECT_URL ou DATABASE_URL não definida. Configure .env.local antes de rodar migrations.",
   );
 }
 
@@ -16,7 +20,7 @@ export default defineConfig({
   out: "./drizzle/migrations",
   dialect: "postgresql",
   dbCredentials: {
-    url: process.env.DATABASE_URL,
+    url: migrationsUrl,
   },
   // Mantém migrations claras no diff.
   verbose: true,

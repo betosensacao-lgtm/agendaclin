@@ -35,7 +35,19 @@ const client =
     // Detecção simples pela porta 6543 (pooler) vs 5432 (direct).
     prepare: !connectionString.includes(":6543"),
     max: 10,
+    // 30s — instância está em eu-central-1, dev pode estar em BR (≈250ms RTT).
+    connect_timeout: 30,
+    idle_timeout: 20,
   });
+
+/**
+ * Fecha o pool de conexões. Usar em scripts de CLI (seed, migrations
+ * ad-hoc) antes do process.exit, pra evitar conexões pendentes no pooler.
+ * Em runtime Next.js não chamar — o pool é compartilhado.
+ */
+export async function closeDb() {
+  await client.end({ timeout: 5 });
+}
 
 if (process.env.NODE_ENV !== "production") {
   globalForPg.pgClient = client;

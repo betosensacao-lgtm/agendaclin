@@ -2,15 +2,15 @@
  * Script ad-hoc para diagnosticar conexão com o Postgres do Supabase.
  * Roda com: pnpm exec tsx scripts/test-db-connection.ts
  */
-import { loadEnvConfig } from "@next/env";
-loadEnvConfig(process.cwd());
+import "./_env"; // carrega .env.local ANTES dos outros imports
 
 import postgres from "postgres";
 
 async function main() {
-  const url = process.env.DATABASE_URL;
+  // Prefere DIRECT_URL (porta 5432) — mais robusto pra dev local.
+  const url = process.env.DIRECT_URL ?? process.env.DATABASE_URL;
   if (!url) {
-    console.error("DATABASE_URL não definida");
+    console.error("Nem DIRECT_URL nem DATABASE_URL definidas");
     process.exit(1);
   }
 
