@@ -1,0 +1,127 @@
+/**
+ * Server Actions do CRUD de profissionais.
+ *
+ *   saveProfessionalAction         cria/edita + sincroniza serviços N:N
+ *   toggleProfessionalActiveAction alterna o flag `active`
+ *
+ * Os IDs de serviço submetidos são re-validados contra os serviços da
+ * própria clínica — defesa contra forjar IDs de outras clínicas via
+ * inspect do form.
+ */
+"use server";
+
+import { and, eq, inArray } from "drizzle-orm";
+import { revalidatePath } from "next/cache";
+import { z } from "zod";
+
+import { requireRole } from "@/lib/auth/guards";
+import { db } from "@/lib/db";
+import {
+  createProfessional,
+  syncProfessionalServices,
+  updateProfessional,
+} from "@/lib/db/queries/professionals";
+import { services } from "@/lib/db/schema";
+
+const ProfessionalSchema = z.object({
+  id: z.uuid().optional(),
+  name: z
+    .string()
+    .trim()
+    .min(2, "Nome deve ter no mínimo 2 caracteres")
+    .max(100, "Nome muito longo"),
+  serviceIds: z.array(z.uuid("ID de serviço inválido")),
+});
+
+export type ProfessionalFormState = {
+  fieldErrors?: Partial<Record<"name" | "serviceIds", string>>;
+  error?: string;
+  ok?: boolean;
+};
+
+export async function saveProfessionalAction(
+  _prevState: ProfessionalFormState,
+  formData: FormData,
+): Promise<ProfessionalFormState> {
+  const user = await requireRole("admin");
+
+  const serviceIds = formData
+    .getAll("serviceIds")
+    .map((v) => String(v))
+    .filter(Boolean);
+
+  const parsed = ProfessionalSchema.safeParse({
+    id: formData.get("id") || undefined,
+    name: formData.get("name"),
+    serviceIds,
+  });
+
+  if (!parsed.success) {
+    const fieldErrors: ProfessionalFormState["fieldErrors"] = {};
+    for (const issue of parsed.error.issues) {
+      const root = issue.path[0] as keyof NonNullable<
+        ProfessionalFormState["fieldErrors"]
+      >;
+      if (!fieldErrors[root]) fieldErrors[root] = issue.message;
+    }
+    return { fieldErrors };
+  }
+
+  // Defesa: garante que todos os service_ids pertencem à clínica do user.
+  if (parsed.data.serviceIds.length > 0) {
+    const owned = await db
+      .select({ id: services.id })
+      .from(services)
+      .where(
+        and(
+          eq(services.clinicId, user.clinicId),
+          inArray(services.id, parsed.data.serviceIds),
+        ),
+      );
+
+    if (owned.length !== parsed.data.serviceIds.length) {
+      return {
+        fieldErrors: {
+          serviceIds: "Algum serviço selecionado é inválido",
+        },
+      };
+    }
+  }
+
+  try {
+    let professionalId: string;
+
+    if (parsed.data.id) {
+      const updated = await updateProfessional(parsed.data.id, user.clinicId, {
+        name: parsed.data.name,
+      });
+      if (!updated) {
+        return { error: "Profissional não encontrado" };
+      }
+      professionalId = updated.id;
+    } else {
+      const created = await createProfessional({
+        clinicId: user.clinicId,
+        name: parsed.data.name,
+      });
+      professionalId = created.id;
+    }
+
+    await syncProfessionalServices(professionalId, parsed.data.serviceIds);
+  } catch (err) {
+    console.error("[saveProfessionalAction]", err);
+    return { error: "Não foi possível salvar. Tente novamente." };
+  }
+
+  revalidatePath("/profissionais");
+  return { ok: true };
+}
+
+export async function toggleProfessionalActiveAction(
+  id: string,
+  active: boolean,
+): Promise<void> {
+  const user = await requireRole("admin");
+  await updateProfessional(id, user.clinicId, { active });
+  revalidatePath("/profissionais");
+}
