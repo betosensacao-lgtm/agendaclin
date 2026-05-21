@@ -1,15 +1,17 @@
 /**
- * Middleware do Next que mantém a sessão do Supabase atualizada em
- * TODA navegação. Sem isso, tokens expirados não são refreshados e o
- * usuário aparece como anônimo intermitentemente.
+ * Proxy do Next 16 (era `middleware.ts` em versões anteriores) — mantém
+ * a sessão do Supabase atualizada em TODA navegação. Sem isso, tokens
+ * expirados não são refreshados e o usuário aparece como anônimo
+ * intermitentemente.
  *
- * Padrão oficial @supabase/ssr (Next 15+). Apenas chama getUser() — não
- * faz redirects (deixa pra requireUser/requireRole nas páginas).
+ * Padrão oficial @supabase/ssr adaptado para Next 16. Apenas chama
+ * getUser() — não faz redirects (deixa pra requireUser/requireRole
+ * nas páginas).
  */
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(
