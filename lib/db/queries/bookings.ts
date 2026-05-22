@@ -8,15 +8,37 @@
  *   `uniq_confirmed_slot` (professional_id, starts_at) WHERE status='confirmed'.
  *   O INSERT vai lançar PostgresError code 23505 se houver conflito.
  */
-import { and, eq, gte, lte, or } from "drizzle-orm";
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  gte,
+  inArray,
+  lt,
+  lte,
+  or,
+} from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import {
   bookings,
   professionals,
   services,
+  type Booking,
   type NewBooking,
 } from "@/lib/db/schema";
+
+// ---- Status do booking (re-export do enum) ----
+
+export const BOOKING_STATUSES = [
+  "confirmed",
+  "cancelled",
+  "attended",
+  "no_show",
+] as const;
+export type BookingStatus = (typeof BOOKING_STATUSES)[number];
 
 // ---- Tipos públicos ----
 
@@ -173,4 +195,186 @@ export async function cancelBookingByToken(
     .returning({ id: bookings.id });
 
   return result.length > 0;
+}
+
+// ---------------------------------------------------------------------------
+// Queries para o painel admin (F4) e do profissional (F5)
+// ---------------------------------------------------------------------------
+
+/**
+ * Item da agenda — bookings + nome do profissional/serviço (join leve).
+ * Usado nas telas /agenda e /consultas.
+ */
+export type AgendaItem = {
+  id: string;
+  startsAt: Date;
+  endsAt: Date;
+  status: BookingStatus;
+  patientName: string;
+  patientPhone: string;
+  patientEmail: string;
+  professional: { id: string; name: string };
+  service: { id: string; name: string; durationMinutes: number };
+};
+
+/**
+ * Lista bookings de uma clínica em um intervalo [from, to) (em UTC),
+ * ordenados por horário. Aceita filtros opcionais por profissional e por
+ * status (lista de status — se vazia, retorna todos).
+ *
+ * Inclui join com professionals e services.
+ */
+export async function listBookingsInRange(input: {
+  clinicId: string;
+  from: Date;
+  to: Date;
+  professionalId?: string | null;
+  statuses?: BookingStatus[];
+}): Promise<AgendaItem[]> {
+  const { clinicId, from, to, professionalId, statuses } = input;
+
+  const whereClauses = [
+    eq(bookings.clinicId, clinicId),
+    gte(bookings.startsAt, from),
+    lt(bookings.startsAt, to),
+  ];
+  if (professionalId) {
+    whereClauses.push(eq(bookings.professionalId, professionalId));
+  }
+  if (statuses && statuses.length > 0) {
+    whereClauses.push(inArray(bookings.status, statuses));
+  }
+
+  const rows = await db
+    .select({
+      id: bookings.id,
+      startsAt: bookings.startsAt,
+      endsAt: bookings.endsAt,
+      status: bookings.status,
+      patientName: bookings.patientName,
+      patientPhone: bookings.patientPhone,
+      patientEmail: bookings.patientEmail,
+      professionalId: bookings.professionalId,
+      professionalName: professionals.name,
+      serviceId: bookings.serviceId,
+      serviceName: services.name,
+      serviceDuration: services.durationMinutes,
+    })
+    .from(bookings)
+    .innerJoin(professionals, eq(bookings.professionalId, professionals.id))
+    .innerJoin(services, eq(bookings.serviceId, services.id))
+    .where(and(...whereClauses))
+    .orderBy(asc(bookings.startsAt));
+
+  return rows.map((r) => ({
+    id: r.id,
+    startsAt: r.startsAt,
+    endsAt: r.endsAt,
+    status: r.status,
+    patientName: r.patientName,
+    patientPhone: r.patientPhone,
+    patientEmail: r.patientEmail,
+    professional: { id: r.professionalId, name: r.professionalName },
+    service: {
+      id: r.serviceId,
+      name: r.serviceName,
+      durationMinutes: r.serviceDuration,
+    },
+  }));
+}
+
+/**
+ * Lista paginada de bookings de uma clínica para a tela /consultas.
+ * Ordenado por startsAt DESC (mais recentes primeiro). Aceita filtros opcionais.
+ */
+export async function listBookingsPaginated(input: {
+  clinicId: string;
+  page: number; // 1-indexed
+  pageSize: number;
+  professionalId?: string | null;
+  statuses?: BookingStatus[];
+}): Promise<{ rows: AgendaItem[]; total: number }> {
+  const { clinicId, page, pageSize, professionalId, statuses } = input;
+
+  const whereClauses = [eq(bookings.clinicId, clinicId)];
+  if (professionalId) {
+    whereClauses.push(eq(bookings.professionalId, professionalId));
+  }
+  if (statuses && statuses.length > 0) {
+    whereClauses.push(inArray(bookings.status, statuses));
+  }
+  const whereExpr = and(...whereClauses);
+
+  const offset = Math.max(0, (page - 1) * pageSize);
+
+  const [rows, [{ value: total }]] = await Promise.all([
+    db
+      .select({
+        id: bookings.id,
+        startsAt: bookings.startsAt,
+        endsAt: bookings.endsAt,
+        status: bookings.status,
+        patientName: bookings.patientName,
+        patientPhone: bookings.patientPhone,
+        patientEmail: bookings.patientEmail,
+        professionalId: bookings.professionalId,
+        professionalName: professionals.name,
+        serviceId: bookings.serviceId,
+        serviceName: services.name,
+        serviceDuration: services.durationMinutes,
+      })
+      .from(bookings)
+      .innerJoin(professionals, eq(bookings.professionalId, professionals.id))
+      .innerJoin(services, eq(bookings.serviceId, services.id))
+      .where(whereExpr)
+      .orderBy(desc(bookings.startsAt))
+      .limit(pageSize)
+      .offset(offset),
+    db
+      .select({ value: count() })
+      .from(bookings)
+      .where(whereExpr),
+  ]);
+
+  return {
+    rows: rows.map((r) => ({
+      id: r.id,
+      startsAt: r.startsAt,
+      endsAt: r.endsAt,
+      status: r.status,
+      patientName: r.patientName,
+      patientPhone: r.patientPhone,
+      patientEmail: r.patientEmail,
+      professional: { id: r.professionalId, name: r.professionalName },
+      service: {
+        id: r.serviceId,
+        name: r.serviceName,
+        durationMinutes: r.serviceDuration,
+      },
+    })),
+    total,
+  };
+}
+
+/**
+ * Atualiza o status de um booking. Escopado por clinicId pra segurança.
+ * Retorna o booking atualizado ou null se não encontrou.
+ */
+export async function updateBookingStatus(input: {
+  bookingId: string;
+  clinicId: string;
+  newStatus: BookingStatus;
+}): Promise<Booking | null> {
+  const rows = await db
+    .update(bookings)
+    .set({ status: input.newStatus })
+    .where(
+      and(
+        eq(bookings.id, input.bookingId),
+        eq(bookings.clinicId, input.clinicId),
+      ),
+    )
+    .returning();
+
+  return rows[0] ?? null;
 }
