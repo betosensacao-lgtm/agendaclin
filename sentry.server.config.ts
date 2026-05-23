@@ -4,6 +4,15 @@
  */
 import * as Sentry from "@sentry/nextjs";
 
+// Log de startup pra diagnosticar problemas de init em produção.
+// eslint-disable-next-line no-console
+console.log(
+  "[sentry.server.config] init",
+  "dsn?", Boolean(process.env.NEXT_PUBLIC_SENTRY_DSN),
+  "env=", process.env.NODE_ENV,
+  "vercel_env=", process.env.VERCEL_ENV,
+);
+
 Sentry.init({
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
 
@@ -19,4 +28,7 @@ Sentry.init({
 
   // Identifica ambientalmente no painel Sentry.
   environment: process.env.VERCEL_ENV ?? "development",
+
+  // Debug temporário pra rastrear envios. REMOVER depois de validar.
+  debug: true,
 });
