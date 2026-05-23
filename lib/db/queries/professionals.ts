@@ -61,6 +61,28 @@ export async function listProfessionalsByClinic(
   }));
 }
 
+/**
+ * Busca o profissional vinculado a um determinado user_id (usado pela
+ * tela /minha-agenda pra descobrir qual profissional o usuário logado
+ * representa). Retorna null se o user não está vinculado a nenhum pro.
+ */
+export async function getProfessionalByUserId(
+  userId: string,
+  clinicId: string,
+): Promise<Professional | null> {
+  const [pro] = await db
+    .select()
+    .from(professionals)
+    .where(
+      and(
+        eq(professionals.userId, userId),
+        eq(professionals.clinicId, clinicId),
+      ),
+    )
+    .limit(1);
+  return pro ?? null;
+}
+
 export async function getProfessionalById(
   id: string,
   clinicId: string,

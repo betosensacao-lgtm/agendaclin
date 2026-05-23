@@ -1,7 +1,7 @@
 /**
  * Painel client-side de profissionais: tabela + dialog (criar/editar) +
- * toggle de ativação. Recebe lista hidratada via prop e revalida via
- * revalidatePath nas Server Actions.
+ * toggle de ativação + criar conta de login. Recebe lista hidratada via
+ * prop e revalida via revalidatePath nas Server Actions.
  */
 "use client";
 
@@ -23,6 +23,7 @@ import type { ProfessionalWithServices } from "@/lib/db/queries/professionals";
 
 import { toggleProfessionalActiveAction } from "./actions";
 import { ProfessionalFormDialog } from "./professional-form-dialog";
+import { ProfessionalLoginDialog } from "./professional-login-dialog";
 
 export function ProfessionalsPanel({
   professionals,
@@ -33,6 +34,7 @@ export function ProfessionalsPanel({
 }) {
   const [editing, setEditing] = useState<ProfessionalWithServices | null>(null);
   const [creating, setCreating] = useState(false);
+  const [loginFor, setLoginFor] = useState<ProfessionalWithServices | null>(null);
   const [pending, startTransition] = useTransition();
   const [togglingId, setTogglingId] = useState<string | null>(null);
 
@@ -60,6 +62,7 @@ export function ProfessionalsPanel({
               <TableHead>Nome</TableHead>
               <TableHead>Serviços</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead>Login</TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
@@ -67,7 +70,7 @@ export function ProfessionalsPanel({
             {professionals.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={4}
+                  colSpan={5}
                   className="h-24 text-center text-muted-foreground"
                 >
                   Nenhum profissional cadastrado.
@@ -100,6 +103,19 @@ export function ProfessionalsPanel({
                       <Badge variant="secondary">Ativo</Badge>
                     ) : (
                       <Badge variant="outline">Inativo</Badge>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {pro.userId ? (
+                      <Badge variant="secondary">Tem acesso</Badge>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setLoginFor(pro)}
+                      >
+                        Criar acesso
+                      </Button>
                     )}
                   </TableCell>
                   <TableCell className="text-right">
@@ -140,6 +156,18 @@ export function ProfessionalsPanel({
           }
         }}
       />
+
+      {loginFor && (
+        <ProfessionalLoginDialog
+          key={loginFor.id}
+          professionalId={loginFor.id}
+          professionalName={loginFor.name}
+          open={loginFor !== null}
+          onOpenChange={(open) => {
+            if (!open) setLoginFor(null);
+          }}
+        />
+      )}
     </>
   );
 }
