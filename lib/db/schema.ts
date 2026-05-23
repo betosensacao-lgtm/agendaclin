@@ -42,6 +42,14 @@ export const clinics = pgTable("clinics", {
   // Email de contato exibido publicamente e usado como destinatário de
   // notificações para a equipe.
   contactEmail: text("contact_email"),
+  // Campos exibidos na landing pública /[slug]. Todos opcionais para
+  // não quebrar clínicas legadas sem esses dados preenchidos.
+  phone: text("phone"),
+  address: text("address"),
+  /** Texto livre, ex.: "Seg-Sex 9h-18h, Sáb 9h-13h" */
+  hoursText: text("hours_text"),
+  /** URL pública da logo (CDN, Supabase Storage, etc). */
+  logoUrl: text("logo_url"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

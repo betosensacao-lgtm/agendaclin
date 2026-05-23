@@ -38,6 +38,9 @@ export default async function AdminLayout({
               <Link href="/horarios" className="hover:text-foreground">
                 Horários
               </Link>
+              <Link href="/clinica" className="hover:text-foreground">
+                Clínica
+              </Link>
             </nav>
           </div>
           <div className="flex items-center gap-3 text-sm">

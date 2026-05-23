@@ -11,6 +11,35 @@ import {
   services,
 } from "@/lib/db/schema";
 
+/** Retorna clínica por ID. null se não existir. */
+export async function getClinicById(id: string) {
+  const rows = await db.select().from(clinics).where(eq(clinics.id, id)).limit(1);
+  return rows[0] ?? null;
+}
+
+/**
+ * Atualiza dados editáveis da clínica. Tudo opcional — só atualiza os
+ * campos passados. Escopado por id (admin já valida ownership via session).
+ */
+export async function updateClinicFields(
+  id: string,
+  patch: {
+    name?: string;
+    contactEmail?: string | null;
+    phone?: string | null;
+    address?: string | null;
+    hoursText?: string | null;
+    logoUrl?: string | null;
+  },
+) {
+  const [updated] = await db
+    .update(clinics)
+    .set(patch)
+    .where(eq(clinics.id, id))
+    .returning();
+  return updated ?? null;
+}
+
 /** Retorna clínica pelo slug público. null se não existir. */
 export async function getClinicBySlug(slug: string) {
   const rows = await db
