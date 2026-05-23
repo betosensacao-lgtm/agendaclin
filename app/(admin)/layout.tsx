@@ -2,10 +2,16 @@
  * Layout do grupo (admin). requireRole('admin') redireciona pra /login
  * se anônimo OU se role != admin. Toda página filha pode assumir que
  * o usuário existe.
+ *
+ * Também checa se o onboarding está pendente — se sim, mostra banner
+ * dispensável no topo (não bloqueia, mas lembra).
  */
+import { Sparkles } from "lucide-react";
 import Link from "next/link";
 
+import { buttonVariants } from "@/components/ui/button";
 import { requireRole } from "@/lib/auth/guards";
+import { getClinicById } from "@/lib/db/queries/clinics";
 
 export default async function AdminLayout({
   children,
@@ -13,6 +19,9 @@ export default async function AdminLayout({
   children: React.ReactNode;
 }) {
   const user = await requireRole("admin");
+  const clinic = await getClinicById(user.clinicId);
+  const showOnboardingBanner =
+    clinic !== null && clinic.onboardingCompleted === false;
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -56,6 +65,27 @@ export default async function AdminLayout({
           </div>
         </div>
       </header>
+
+      {showOnboardingBanner && (
+        <div className="border-b bg-blue-50 dark:bg-blue-950/30">
+          <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-2.5 text-sm">
+            <div className="flex items-center gap-2">
+              <Sparkles className="size-4 text-blue-600 dark:text-blue-400" />
+              <span>
+                <strong>Vamos configurar sua clínica?</strong> Em 5 passos você
+                fica pronto pra receber agendamentos.
+              </span>
+            </div>
+            <Link
+              href="/onboarding"
+              className={buttonVariants({ size: "sm" })}
+            >
+              Continuar configuração
+            </Link>
+          </div>
+        </div>
+      )}
+
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">
         {children}
       </main>

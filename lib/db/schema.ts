@@ -50,6 +50,12 @@ export const clinics = pgTable("clinics", {
   hoursText: text("hours_text"),
   /** URL pública da logo (CDN, Supabase Storage, etc). */
   logoUrl: text("logo_url"),
+  /**
+   * Flag de onboarding: true quando a clínica concluiu o wizard inicial
+   * (configurou serviços, profissionais e horários). Layout admin
+   * redireciona pra /onboarding se ainda false.
+   */
+  onboardingCompleted: boolean("onboarding_completed").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

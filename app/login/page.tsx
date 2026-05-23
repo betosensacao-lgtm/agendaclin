@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -65,10 +66,19 @@ export default function LoginPage() {
               </p>
             )}
           </CardContent>
-          <CardFooter>
+          <CardFooter className="flex flex-col gap-3">
             <Button type="submit" className="w-full" disabled={pending}>
               {pending ? "Entrando…" : "Entrar"}
             </Button>
+            <p className="text-center text-sm text-muted-foreground">
+              Ainda não tem conta?{" "}
+              <Link
+                href="/signup"
+                className="font-medium text-foreground hover:underline"
+              >
+                Cadastre sua clínica
+              </Link>
+            </p>
           </CardFooter>
         </form>
       </Card>

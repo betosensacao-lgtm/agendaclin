@@ -11,6 +11,7 @@
  */
 import BookingConfirmation from "@/emails/BookingConfirmation";
 import StaffNotification from "@/emails/StaffNotification";
+import WelcomeClinic from "@/emails/WelcomeClinic";
 import { getAppUrl, getFromAddress, getResend } from "@/lib/email/client";
 import { DEFAULT_TZ } from "@/lib/timezone";
 
@@ -119,5 +120,42 @@ export async function sendStaffNotification(input: {
     }
   } catch (err) {
     console.error("[email:sendStaffNotification] exception", err);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Boas-vindas (admin de clínica recém-cadastrada)
+// ---------------------------------------------------------------------------
+
+export async function sendWelcomeClinic(input: {
+  adminEmail: string;
+  adminName: string;
+  clinicName: string;
+  clinicSlug: string;
+}): Promise<void> {
+  const resend = getResend();
+  if (!resend) return;
+
+  const appUrl = getAppUrl();
+  const publicUrl = `${appUrl}/${input.clinicSlug}`;
+  const onboardingUrl = `${appUrl}/onboarding`;
+
+  try {
+    const { error } = await resend.emails.send({
+      from: `agendaclin <${getFromAddress()}>`,
+      to: input.adminEmail,
+      subject: `Bem-vindo ao agendaclin, ${input.clinicName}`,
+      react: WelcomeClinic({
+        adminName: input.adminName,
+        clinicName: input.clinicName,
+        publicUrl,
+        onboardingUrl,
+      }),
+    });
+    if (error) {
+      console.error("[email:sendWelcomeClinic]", error);
+    }
+  } catch (err) {
+    console.error("[email:sendWelcomeClinic] exception", err);
   }
 }
