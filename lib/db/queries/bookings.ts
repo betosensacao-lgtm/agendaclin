@@ -175,6 +175,39 @@ export async function createBooking(
 }
 
 /**
+ * Remarca um booking pelo cancel_token (mantém o mesmo id e token).
+ *
+ * Lança erro com code "23505" se o novo slot conflita com outro booking
+ * confirmado do mesmo profissional (unique partial index).
+ *
+ * Lança erro genérico se booking não existir, não pertencer à clínica,
+ * ou não estiver "confirmed".
+ */
+export async function rescheduleBookingByToken(input: {
+  cancelToken: string;
+  clinicId: string;
+  newStartsAt: Date;
+  newEndsAt: Date;
+}): Promise<boolean> {
+  const result = await db
+    .update(bookings)
+    .set({
+      startsAt: input.newStartsAt,
+      endsAt: input.newEndsAt,
+    })
+    .where(
+      and(
+        eq(bookings.cancelToken, input.cancelToken),
+        eq(bookings.clinicId, input.clinicId),
+        eq(bookings.status, "confirmed"),
+      ),
+    )
+    .returning({ id: bookings.id });
+
+  return result.length > 0;
+}
+
+/**
  * Cancela um booking pelo cancel_token. Só cancela se estiver "confirmed"
  * e pertencer à clínica informada (segurança extra). Retorna true se cancelou.
  */

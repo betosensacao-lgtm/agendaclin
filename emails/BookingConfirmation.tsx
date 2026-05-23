@@ -23,7 +23,12 @@ export type BookingConfirmationProps = {
   professionalName: string;
   dateTimeFormatted: string; // ex.: "segunda-feira, 02 de junho às 09:00"
   durationMinutes: number;
+  /** URL da página de gerenciamento (ver/remarcar/cancelar). */
+  manageUrl: string;
+  /** URL direta de cancelamento (atalho). */
   cancelUrl: string;
+  /** URL direta de remarcação (atalho). */
+  rescheduleUrl: string;
 };
 
 export default function BookingConfirmation({
@@ -33,7 +38,9 @@ export default function BookingConfirmation({
   professionalName,
   dateTimeFormatted,
   durationMinutes,
+  manageUrl,
   cancelUrl,
+  rescheduleUrl,
 }: BookingConfirmationProps) {
   const firstName = patientName.split(" ")[0];
   return (
@@ -57,19 +64,29 @@ export default function BookingConfirmation({
             <Row label="Quando" value={dateTimeFormatted} />
           </Section>
 
+          <Text style={paragraphSmall}>
+            📎 Anexamos o evento no calendário (.ics) — abra o anexo pra
+            adicionar ao Google Calendar, Apple ou Outlook com 1 toque.
+          </Text>
+
           <Section style={ctaSection}>
             <Text style={paragraphSmall}>
-              Precisa cancelar? Use o botão abaixo (sem necessidade de
-              login).
+              Precisa mudar algo? Você pode remarcar ou cancelar sem
+              precisar ligar:
             </Text>
-            <Button href={cancelUrl} style={button}>
-              Ver / cancelar agendamento
-            </Button>
+            <div style={buttonRow}>
+              <Button href={rescheduleUrl} style={button}>
+                Remarcar
+              </Button>
+              <Button href={cancelUrl} style={buttonGhost}>
+                Cancelar
+              </Button>
+            </div>
             <Text style={fineprint}>
-              Se o botão não funcionar, copie e cole no navegador:
+              Se os botões não funcionarem, abra:
               <br />
-              <Link href={cancelUrl} style={link}>
-                {cancelUrl}
+              <Link href={manageUrl} style={link}>
+                {manageUrl}
               </Link>
             </Text>
           </Section>
@@ -174,11 +191,29 @@ const button: React.CSSProperties = {
   backgroundColor: "#111827",
   color: "#ffffff",
   borderRadius: 6,
-  padding: "12px 24px",
+  padding: "10px 20px",
   fontSize: 14,
   fontWeight: 500,
   textDecoration: "none",
   display: "inline-block",
+};
+
+const buttonGhost: React.CSSProperties = {
+  backgroundColor: "#ffffff",
+  color: "#111827",
+  border: "1px solid #d1d5db",
+  borderRadius: 6,
+  padding: "10px 20px",
+  fontSize: 14,
+  fontWeight: 500,
+  textDecoration: "none",
+  display: "inline-block",
+};
+
+const buttonRow: React.CSSProperties = {
+  display: "inline-flex",
+  gap: 8,
+  justifyContent: "center" as const,
 };
 
 const fineprint: React.CSSProperties = {

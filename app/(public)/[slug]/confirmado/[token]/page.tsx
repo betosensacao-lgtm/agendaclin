@@ -109,19 +109,27 @@ export default async function ConfirmadoPage({
             </div>
           </div>
 
-          {/* Cancelamento */}
-          <div className="rounded-md border border-dashed p-4 text-sm space-y-2">
-            <p className="font-medium">Precisa cancelar?</p>
+          {/* Remarcar / cancelar */}
+          <div className="rounded-md border border-dashed p-4 text-sm space-y-3">
+            <p className="font-medium">Precisa mudar algo?</p>
             <p className="text-muted-foreground">
-              Use o link abaixo para cancelar gratuitamente até o dia da
-              consulta.
+              Você pode remarcar ou cancelar até o dia da consulta —
+              sem precisar ligar.
             </p>
-            <Link
-              href={`/${slug}/cancelar/${token}`}
-              className={buttonVariants({ variant: "outline", size: "sm" })}
-            >
-              Cancelar agendamento
-            </Link>
+            <div className="flex flex-wrap gap-2">
+              <Link
+                href={`/${slug}/remarcar/${token}`}
+                className={buttonVariants({ size: "sm" })}
+              >
+                Remarcar
+              </Link>
+              <Link
+                href={`/${slug}/cancelar/${token}`}
+                className={buttonVariants({ variant: "outline", size: "sm" })}
+              >
+                Cancelar
+              </Link>
+            </div>
           </div>
         </>
       )}

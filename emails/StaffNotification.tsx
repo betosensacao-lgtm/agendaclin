@@ -14,8 +14,10 @@ import {
   Text,
 } from "@react-email/components";
 
+export type StaffNotificationKind = "new" | "cancelled" | "rescheduled";
+
 export type StaffNotificationProps = {
-  kind: "new" | "cancelled";
+  kind: StaffNotificationKind;
   clinicName: string;
   patientName: string;
   patientEmail: string;
@@ -25,9 +27,21 @@ export type StaffNotificationProps = {
   dateTimeFormatted: string;
 };
 
+const TITLES: Record<StaffNotificationKind, string> = {
+  new: "Novo agendamento",
+  cancelled: "Agendamento cancelado",
+  rescheduled: "Agendamento remarcado",
+};
+
+const ICONS: Record<StaffNotificationKind, string> = {
+  new: "📅 ",
+  cancelled: "❌ ",
+  rescheduled: "🔄 ",
+};
+
 export default function StaffNotification(props: StaffNotificationProps) {
-  const isNew = props.kind === "new";
-  const title = isNew ? "Novo agendamento" : "Agendamento cancelado";
+  const title = TITLES[props.kind];
+  const icon = ICONS[props.kind];
 
   return (
     <Html lang="pt-BR">
@@ -38,7 +52,7 @@ export default function StaffNotification(props: StaffNotificationProps) {
       <Body style={body}>
         <Container style={container}>
           <Heading style={h1}>
-            {isNew ? "📅 " : "❌ "}
+            {icon}
             {title}
           </Heading>
 

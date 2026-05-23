@@ -274,16 +274,19 @@ export async function createBookingAction(
       const details = await getBookingByToken(booking.cancelToken);
       if (!details) return;
 
-      // Confirmação ao paciente
+      // Confirmação ao paciente (com .ics anexo)
       await sendBookingConfirmation({
         patientEmail: details.patientEmail,
         patientName: details.patientName,
         clinicName: clinic.name,
         clinicSlug: clinic.slug,
+        clinicAddress: clinic.address,
         serviceName: details.service.name,
         professionalName: details.professional.name,
         startsAt: details.startsAt,
+        endsAt: details.endsAt,
         durationMinutes: details.service.durationMinutes,
+        bookingId: details.id,
         cancelToken: details.cancelToken,
       });
 

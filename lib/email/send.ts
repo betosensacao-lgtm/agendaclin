@@ -12,6 +12,7 @@
 import BookingConfirmation from "@/emails/BookingConfirmation";
 import StaffNotification from "@/emails/StaffNotification";
 import WelcomeClinic from "@/emails/WelcomeClinic";
+import { buildBookingIcs } from "@/lib/calendar/ics";
 import { getAppUrl, getFromAddress, getResend } from "@/lib/email/client";
 import { DEFAULT_TZ } from "@/lib/timezone";
 
@@ -40,17 +41,36 @@ export async function sendBookingConfirmation(input: {
   patientName: string;
   clinicName: string;
   clinicSlug: string;
+  clinicAddress?: string | null;
   serviceName: string;
   professionalName: string;
   startsAt: Date;
+  endsAt: Date;
   durationMinutes: number;
+  bookingId: string;
   cancelToken: string;
 }): Promise<void> {
   const resend = getResend();
   if (!resend) return;
 
-  const cancelUrl = `${getAppUrl()}/${input.clinicSlug}/cancelar/${input.cancelToken}`;
+  const appUrl = getAppUrl();
+  const cancelUrl = `${appUrl}/${input.clinicSlug}/cancelar/${input.cancelToken}`;
+  const rescheduleUrl = `${appUrl}/${input.clinicSlug}/remarcar/${input.cancelToken}`;
+  const manageUrl = `${appUrl}/${input.clinicSlug}/confirmado/${input.cancelToken}`;
   const dateTimeFormatted = formatDateTimeFull(input.startsAt);
+
+  // .ics como attachment — paciente abre uma vez e o evento entra no
+  // calendário dele (Google, Apple, Outlook etc.).
+  const ics = buildBookingIcs({
+    bookingId: input.bookingId,
+    startsAt: input.startsAt,
+    endsAt: input.endsAt,
+    clinicName: input.clinicName,
+    serviceName: input.serviceName,
+    professionalName: input.professionalName,
+    address: input.clinicAddress,
+    manageUrl,
+  });
 
   try {
     const { error } = await resend.emails.send({
@@ -64,8 +84,19 @@ export async function sendBookingConfirmation(input: {
         professionalName: input.professionalName,
         dateTimeFormatted,
         durationMinutes: input.durationMinutes,
+        manageUrl,
         cancelUrl,
+        rescheduleUrl,
       }),
+      attachments: [
+        {
+          filename: "consulta.ics",
+          content: Buffer.from(ics, "utf-8").toString("base64"),
+          // Resend aceita base64 string. Tipo de conteúdo é deduzido
+          // pela extensão; alguns clientes preferem explícito.
+          contentType: "text/calendar; method=PUBLISH; charset=UTF-8",
+        },
+      ],
     });
     if (error) {
       console.error("[email:sendBookingConfirmation]", error);
@@ -81,7 +112,7 @@ export async function sendBookingConfirmation(input: {
 
 export async function sendStaffNotification(input: {
   staffEmail: string;
-  kind: "new" | "cancelled";
+  kind: "new" | "cancelled" | "rescheduled";
   clinicName: string;
   patientName: string;
   patientEmail: string;
@@ -97,7 +128,9 @@ export async function sendStaffNotification(input: {
   const subject =
     input.kind === "new"
       ? `Novo agendamento — ${input.patientName} (${dateTimeFormatted})`
-      : `Agendamento cancelado — ${input.patientName} (${dateTimeFormatted})`;
+      : input.kind === "rescheduled"
+        ? `Agendamento remarcado — ${input.patientName} (${dateTimeFormatted})`
+        : `Agendamento cancelado — ${input.patientName} (${dateTimeFormatted})`;
 
   try {
     const { error } = await resend.emails.send({
