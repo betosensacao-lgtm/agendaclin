@@ -142,8 +142,13 @@ export async function rescheduleBookingAction(input: {
     newStartsAt.getTime() + booking.service.durationMinutes * 60_000,
   );
 
-  // Mesmo slot? Sem trabalho.
-  if (newStartsAt.getTime() === booking.startsAt.getTime()) {
+  // Mesmo slot? Sem trabalho — retorna ok pra UX limpa.
+  // Tolerância de 1s pra cobrir drift de millis (Postgres timestamptz
+  // tem precisão microsegundo; ISO roundtrip pode perder dígitos).
+  const driftMs = Math.abs(
+    newStartsAt.getTime() - booking.startsAt.getTime(),
+  );
+  if (driftMs < 1000) {
     return { ok: true };
   }
 

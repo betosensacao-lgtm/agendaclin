@@ -147,7 +147,11 @@ export function RescheduleForm({
           </p>
           <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
             {slots.map((slot) => {
-              const isCurrent = slot.startsAt === currentStartsAt;
+              // Comparar por timestamp (number) é mais robusto que comparar
+              // strings ISO, que podem diferir em millis ou formato.
+              const currentTs = new Date(currentStartsAt).getTime();
+              const slotTs = new Date(slot.startsAt).getTime();
+              const isCurrent = slotTs === currentTs;
               const isSubmitting = submittingSlot === slot.startsAt;
               return (
                 <Button
@@ -157,6 +161,7 @@ export function RescheduleForm({
                   disabled={isCurrent || submittingSlot !== null}
                   onClick={() => handleSelectSlot(slot)}
                   className="font-mono tabular-nums"
+                  title={isCurrent ? "Horário atual" : undefined}
                 >
                   {isSubmitting
                     ? "..."
@@ -167,7 +172,7 @@ export function RescheduleForm({
           </div>
           <p className="mt-3 text-xs text-muted-foreground">
             Clique num horário pra confirmar a remarcação. O horário atual
-            aparece destacado.
+            aparece em cinza e não pode ser selecionado novamente.
           </p>
         </div>
       )}
