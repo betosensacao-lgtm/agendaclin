@@ -13,6 +13,7 @@
 "use server";
 
 import { and, eq } from "drizzle-orm";
+import { after } from "next/server";
 import { z } from "zod";
 
 import { db } from "@/lib/db";
@@ -25,10 +26,15 @@ import {
 import { listOverridesAffectingProfessional } from "@/lib/db/queries/availability";
 import {
   createBooking,
+  getBookingByToken,
   getConfirmedBookingsInRange,
 } from "@/lib/db/queries/bookings";
 import { getClinicBySlug } from "@/lib/db/queries/clinics";
 import { generateSlots } from "@/lib/booking/slots";
+import {
+  sendBookingConfirmation,
+  sendStaffNotification,
+} from "@/lib/email/send";
 
 // ---------------------------------------------------------------------------
 // Utilitários internos
@@ -262,6 +268,41 @@ export async function createBookingAction(
       startsAt,
       endsAt,
     });
+
+    // 9. Dispara emails em background (não bloqueia a resposta).
+    after(async () => {
+      const details = await getBookingByToken(booking.cancelToken);
+      if (!details) return;
+
+      // Confirmação ao paciente
+      await sendBookingConfirmation({
+        patientEmail: details.patientEmail,
+        patientName: details.patientName,
+        clinicName: clinic.name,
+        clinicSlug: clinic.slug,
+        serviceName: details.service.name,
+        professionalName: details.professional.name,
+        startsAt: details.startsAt,
+        durationMinutes: details.service.durationMinutes,
+        cancelToken: details.cancelToken,
+      });
+
+      // Notificação ao staff (se a clínica tem email de contato)
+      if (clinic.contactEmail) {
+        await sendStaffNotification({
+          staffEmail: clinic.contactEmail,
+          kind: "new",
+          clinicName: clinic.name,
+          patientName: details.patientName,
+          patientEmail: details.patientEmail,
+          patientPhone: details.patientPhone,
+          serviceName: details.service.name,
+          professionalName: details.professional.name,
+          startsAt: details.startsAt,
+        });
+      }
+    });
+
     return { ok: true, cancelToken: booking.cancelToken };
   } catch (err: unknown) {
     if (
