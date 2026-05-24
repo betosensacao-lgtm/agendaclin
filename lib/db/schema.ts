@@ -215,6 +215,10 @@ export const bookings = pgTable(
       .notNull()
       .unique()
       .default(sql`gen_random_uuid()`),
+    /** Timestamp do envio do lembrete por WhatsApp. null = ainda não enviado. */
+    whatsappReminderSentAt: timestamp("whatsapp_reminder_sent_at", {
+      withTimezone: true,
+    }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

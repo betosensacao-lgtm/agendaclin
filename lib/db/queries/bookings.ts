@@ -16,14 +16,17 @@ import {
   eq,
   gte,
   inArray,
+  isNull,
   lt,
   lte,
   or,
+  sql,
 } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import {
   bookings,
+  clinics,
   professionals,
   services,
   type Booking,
@@ -387,6 +390,91 @@ export async function listBookingsPaginated(input: {
     })),
     total,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Lembretes por WhatsApp (cron job)
+// ---------------------------------------------------------------------------
+
+/**
+ * Tipo retornado por getBookingsDueForReminder — inclui dados da clínica
+ * necessários para montar a mensagem e a URL de gerenciamento.
+ */
+export type ReminderBooking = {
+  id: string;
+  cancelToken: string;
+  patientName: string;
+  patientPhone: string;
+  startsAt: Date;
+  clinic: { slug: string; name: string; timezone: string };
+  professional: { name: string };
+  service: { name: string };
+};
+
+/**
+ * Retorna todos os bookings confirmados que:
+ *   - starts_at está entre now()+23h e now()+25h (janela de 2h centrada em 24h)
+ *   - whatsapp_reminder_sent_at IS NULL (ainda não enviado)
+ *   - patient_phone está preenchido (sempre no nosso schema, mas por segurança)
+ *
+ * Inclui join com clinic, professional e service para montar a mensagem.
+ */
+export async function getBookingsDueForReminder(): Promise<ReminderBooking[]> {
+  const now = new Date();
+  const from = new Date(now.getTime() + 23 * 60 * 60 * 1000); // +23h
+  const to = new Date(now.getTime() + 25 * 60 * 60 * 1000);   // +25h
+
+  const rows = await db
+    .select({
+      id: bookings.id,
+      cancelToken: bookings.cancelToken,
+      patientName: bookings.patientName,
+      patientPhone: bookings.patientPhone,
+      startsAt: bookings.startsAt,
+      clinicSlug: clinics.slug,
+      clinicName: clinics.name,
+      clinicTimezone: clinics.timezone,
+      professionalName: professionals.name,
+      serviceName: services.name,
+    })
+    .from(bookings)
+    .innerJoin(clinics, eq(bookings.clinicId, clinics.id))
+    .innerJoin(professionals, eq(bookings.professionalId, professionals.id))
+    .innerJoin(services, eq(bookings.serviceId, services.id))
+    .where(
+      and(
+        eq(bookings.status, "confirmed"),
+        isNull(bookings.whatsappReminderSentAt),
+        gte(bookings.startsAt, from),
+        lt(bookings.startsAt, to),
+      ),
+    );
+
+  return rows.map((r) => ({
+    id: r.id,
+    cancelToken: r.cancelToken,
+    patientName: r.patientName,
+    patientPhone: r.patientPhone,
+    startsAt: r.startsAt,
+    clinic: {
+      slug: r.clinicSlug,
+      name: r.clinicName,
+      timezone: r.clinicTimezone,
+    },
+    professional: { name: r.professionalName },
+    service: { name: r.serviceName },
+  }));
+}
+
+/**
+ * Marca o booking como "lembrete enviado" com o timestamp atual.
+ * Usado logo após o envio bem-sucedido do WhatsApp.
+ */
+export async function markReminderSent(bookingId: string): Promise<void> {
+  await db
+    .update(bookings)
+    .set({ whatsappReminderSentAt: sql`now()` })
+    .where(eq(bookings.id, bookingId));
 }
 
 /**
