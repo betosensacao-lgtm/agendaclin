@@ -1,26 +1,18 @@
 /**
- * Landing pública da clínica. Exibe logo, nome, contato, horários e
- * serviços ativos. Botão "Agendar consulta" leva ao wizard.
+ * Landing pública da clínica — design moderno "Warm Professional".
  *
- * Todos os campos novos (logo, phone, address, hoursText) são opcionais
- * e o layout se adapta — clínica sem esses dados ainda renderiza bem.
+ * Hero com gradiente escuro (full-bleed dentro do layout),
+ * cards de serviço clicáveis com hover, seção de contato clean.
  */
-import { Mail, MapPin, Clock, Phone } from "lucide-react";
+import { Calendar, Clock, Mail, MapPin, Phone } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
-import {
-  Card,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { getPublicServices, getClinicBySlug } from "@/lib/db/queries/clinics";
 import { formatDuration, formatPriceCents } from "@/lib/format";
-import {
-  getClinicBySlug,
-  getPublicServices,
-} from "@/lib/db/queries/clinics";
+import { cn } from "@/lib/utils";
 
 export default async function ClinicLandingPage({
   params,
@@ -40,109 +32,168 @@ export default async function ClinicLandingPage({
     Boolean(clinic.contactEmail);
 
   return (
-    <div className="space-y-8">
-      {/* Cabeçalho da clínica */}
-      <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
-        {clinic.logoUrl && (
-          // eslint-disable-next-line @next/next/no-img-element -- URL externa fornecida pelo admin
-          <img
-            src={clinic.logoUrl}
-            alt={`Logo ${clinic.name}`}
-            className="size-16 shrink-0 rounded-md border bg-background object-contain p-1"
-          />
-        )}
-        <div className="space-y-1">
-          <h1 className="text-2xl font-bold">{clinic.name}</h1>
-          <p className="text-muted-foreground">
-            Agende sua consulta online de forma rápida e fácil.
-          </p>
+    <div>
+      {/* ── Hero (full-bleed) ── */}
+      <div className="-mx-4 -mt-8 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-700 px-6 pb-10 pt-10 text-white">
+        {/* Logo + nome */}
+        <div className="mb-6 flex items-center gap-4">
+          {clinic.logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={clinic.logoUrl}
+              alt={`Logo ${clinic.name}`}
+              className="size-14 shrink-0 rounded-xl border border-white/20 bg-white/10 object-contain p-1.5"
+            />
+          ) : (
+            <div className="flex size-14 shrink-0 items-center justify-center rounded-xl border border-white/20 bg-white/10 text-xl font-bold">
+              {clinic.name.charAt(0).toUpperCase()}
+            </div>
+          )}
+          <div>
+            <h1 className="text-2xl font-bold leading-tight">{clinic.name}</h1>
+            <p className="text-sm text-slate-400">Agendamento online</p>
+          </div>
         </div>
+
+        {/* Headline */}
+        <p className="mb-6 max-w-sm text-base text-slate-300">
+          Agende sua consulta em minutos, sem precisar ligar.
+        </p>
+
+        {/* CTA */}
+        {services.length > 0 && (
+          <div className="flex items-center gap-4">
+            <Link
+              href={`/${slug}/agendar`}
+              className={cn(
+                buttonVariants({ size: "lg" }),
+                "bg-white text-slate-900 hover:bg-slate-100",
+              )}
+            >
+              <Calendar className="mr-2 size-4" />
+              Agendar consulta
+            </Link>
+            <span className="text-sm text-slate-400">
+              {services.length} serviço{services.length !== 1 ? "s" : ""}
+            </span>
+          </div>
+        )}
       </div>
 
-      {/* CTA */}
-      {services.length > 0 && (
-        <div className="flex justify-center">
-          <Link
-            href={`/${slug}/agendar`}
-            className={buttonVariants({ size: "lg" })}
-          >
-            Agendar consulta
-          </Link>
-        </div>
-      )}
+      {/* ── Corpo ── */}
+      <div className="mt-8 space-y-10">
+        {/* Serviços */}
+        <section className="space-y-4">
+          <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+            Serviços disponíveis
+          </h2>
 
-      {/* Serviços disponíveis */}
-      {services.length === 0 ? (
-        <p className="rounded-md border p-6 text-center text-sm text-muted-foreground">
-          Nenhum serviço disponível no momento. Entre em contato com a clínica.
-        </p>
-      ) : (
-        <div className="space-y-3">
-          <h2 className="font-semibold">Serviços disponíveis</h2>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {services.map((service) => (
-              <Card key={service.id} className="overflow-hidden">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base">{service.name}</CardTitle>
-                  <CardDescription className="flex flex-wrap gap-3 text-xs">
-                    <span>{formatDuration(service.durationMinutes)}</span>
-                    {service.priceCents != null && (
-                      <span>{formatPriceCents(service.priceCents)}</span>
-                    )}
-                  </CardDescription>
-                </CardHeader>
-              </Card>
-            ))}
-          </div>
-        </div>
-      )}
+          {services.length === 0 ? (
+            <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
+              Nenhum serviço disponível no momento. Entre em contato com a
+              clínica.
+            </div>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {services.map((service) => (
+                <Link
+                  key={service.id}
+                  href={`/${slug}/agendar`}
+                  className="group flex items-start gap-4 rounded-xl border bg-card p-4 transition-all duration-150 hover:border-slate-400 hover:shadow-md"
+                >
+                  <div className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600 transition-colors group-hover:bg-slate-900 group-hover:text-white">
+                    <Calendar className="size-4" />
+                  </div>
+                  <div className="min-w-0 flex-1 space-y-1.5">
+                    <p className="font-medium leading-snug">{service.name}</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      <Badge
+                        variant="secondary"
+                        className="gap-1 text-xs font-normal"
+                      >
+                        <Clock className="size-3" />
+                        {formatDuration(service.durationMinutes)}
+                      </Badge>
+                      {service.priceCents != null && (
+                        <Badge
+                          variant="outline"
+                          className="text-xs font-normal"
+                        >
+                          {formatPriceCents(service.priceCents)}
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
+        </section>
 
-      {/* Contato / informações */}
-      {hasContactInfo && (
-        <div className="space-y-3">
-          <h2 className="font-semibold">Contato e localização</h2>
-          <div className="rounded-md border p-4 space-y-3 text-sm">
-            {clinic.address && (
-              <InfoRow icon={<MapPin className="size-4" />} label="Endereço">
-                <span className="whitespace-pre-line">{clinic.address}</span>
-              </InfoRow>
-            )}
-            {clinic.hoursText && (
-              <InfoRow
-                icon={<Clock className="size-4" />}
-                label="Horário de funcionamento"
-              >
-                {clinic.hoursText}
-              </InfoRow>
-            )}
-            {clinic.phone && (
-              <InfoRow icon={<Phone className="size-4" />} label="Telefone">
-                <a
-                  href={`tel:${clinic.phone.replace(/\D/g, "")}`}
-                  className="hover:underline"
-                >
-                  {clinic.phone}
-                </a>
-              </InfoRow>
-            )}
-            {clinic.contactEmail && (
-              <InfoRow icon={<Mail className="size-4" />} label="E-mail">
-                <a
-                  href={`mailto:${clinic.contactEmail}`}
-                  className="hover:underline"
-                >
-                  {clinic.contactEmail}
-                </a>
-              </InfoRow>
-            )}
+        {/* Contato */}
+        {hasContactInfo && (
+          <section className="space-y-4">
+            <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+              Contato e localização
+            </h2>
+            <div className="overflow-hidden rounded-xl border divide-y">
+              {clinic.address && (
+                <ContactRow icon={<MapPin className="size-4" />} label="Endereço">
+                  <span className="whitespace-pre-line">{clinic.address}</span>
+                </ContactRow>
+              )}
+              {clinic.hoursText && (
+                <ContactRow icon={<Clock className="size-4" />} label="Horário">
+                  {clinic.hoursText}
+                </ContactRow>
+              )}
+              {clinic.phone && (
+                <ContactRow icon={<Phone className="size-4" />} label="Telefone">
+                  <a
+                    href={`tel:${clinic.phone.replace(/\D/g, "")}`}
+                    className="text-blue-600 hover:underline"
+                  >
+                    {clinic.phone}
+                  </a>
+                </ContactRow>
+              )}
+              {clinic.contactEmail && (
+                <ContactRow icon={<Mail className="size-4" />} label="E-mail">
+                  <a
+                    href={`mailto:${clinic.contactEmail}`}
+                    className="text-blue-600 hover:underline"
+                  >
+                    {clinic.contactEmail}
+                  </a>
+                </ContactRow>
+              )}
+            </div>
+          </section>
+        )}
+
+        {/* CTA repetido no final (se houver serviços) */}
+        {services.length > 0 && (
+          <div className="rounded-xl bg-slate-50 p-6 text-center dark:bg-slate-900/40">
+            <p className="mb-4 text-sm text-muted-foreground">
+              Pronto para agendar? É rápido e sem precisar ligar.
+            </p>
+            <Link
+              href={`/${slug}/agendar`}
+              className={buttonVariants({ size: "lg" })}
+            >
+              <Calendar className="mr-2 size-4" />
+              Agendar consulta
+            </Link>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
 
-function InfoRow({
+// ── Componente auxiliar ──
+
+function ContactRow({
   icon,
   label,
   children,
@@ -152,15 +203,15 @@ function InfoRow({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex items-start gap-3">
-      <span className="mt-0.5 text-muted-foreground" aria-hidden>
+    <div className="flex items-start gap-4 bg-card px-4 py-3.5">
+      <div className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
         {icon}
-      </span>
+      </div>
       <div className="flex-1 space-y-0.5">
-        <div className="text-xs uppercase tracking-wide text-muted-foreground">
+        <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
           {label}
         </div>
-        <div>{children}</div>
+        <div className="text-sm">{children}</div>
       </div>
     </div>
   );
