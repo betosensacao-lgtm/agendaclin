@@ -41,7 +41,7 @@ export default async function AgendarPage({
   );
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto w-full max-w-2xl space-y-6 px-4 py-8">
       <div>
         <p className="text-sm text-muted-foreground">{clinic.name}</p>
         <h1 className="text-xl font-bold">Agendar consulta</h1>

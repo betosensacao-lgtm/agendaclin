@@ -43,7 +43,7 @@ export default async function ConfirmadoPage({
   const isCancelled = booking.status === "cancelled";
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto w-full max-w-2xl space-y-6 px-4 py-8">
       {isCancelled ? (
         <>
           <div className="flex items-center gap-3 text-muted-foreground">

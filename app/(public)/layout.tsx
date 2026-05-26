@@ -1,6 +1,10 @@
 /**
  * Layout do grupo (public). Sem auth guard — qualquer visitante acessa.
- * Header minimalista com apenas o nome do app.
+ *
+ * O layout NÃO impõe container — cada página define a própria largura.
+ * Isso permite que a landing use full-bleed com hero amplo, enquanto
+ * páginas de fluxo (agendar, confirmado, cancelar, remarcar) usam
+ * `max-w-2xl mx-auto` localmente.
  */
 export default function PublicLayout({
   children,
@@ -8,11 +12,9 @@ export default function PublicLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-8">
-        {children}
-      </main>
-      <footer className="border-t py-4 text-center text-xs text-muted-foreground">
+    <div className="flex min-h-screen flex-col bg-[#FAFAFA]">
+      <main className="flex-1">{children}</main>
+      <footer className="border-t bg-white py-5 text-center text-xs text-muted-foreground">
         Agendamento online · agendaclin
       </footer>
     </div>

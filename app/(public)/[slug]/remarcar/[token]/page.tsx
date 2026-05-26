@@ -47,7 +47,7 @@ export default async function RemarcarPage({
 
   if (booking.status !== "confirmed") {
     return (
-      <div className="space-y-4">
+      <div className="mx-auto w-full max-w-2xl space-y-4 px-4 py-8">
         <div className="flex items-center gap-3 text-muted-foreground">
           <AlertTriangle className="size-5 shrink-0" />
           <p className="text-sm">
@@ -66,7 +66,7 @@ export default async function RemarcarPage({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto w-full max-w-2xl space-y-6 px-4 py-8">
       <div>
         <h1 className="text-xl font-bold">Remarcar agendamento</h1>
         <p className="text-sm text-muted-foreground">
