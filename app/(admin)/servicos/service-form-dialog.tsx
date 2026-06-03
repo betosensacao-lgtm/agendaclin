@@ -1,7 +1,5 @@
 /**
- * Dialog com form de criar/editar serviço. Usa useActionState pra
- * orquestrar a Server Action, mostra fieldErrors do Zod inline e
- * fecha quando a action retorna ok.
+ * Dialog with create/edit service form.
  */
 "use client";
 
@@ -40,7 +38,6 @@ export function ServiceFormDialog({
     INITIAL_STATE,
   );
 
-  // Fecha o dialog quando a action retorna ok.
   useEffect(() => {
     if (state.ok) onOpenChange(false);
   }, [state.ok, onOpenChange]);
@@ -52,19 +49,19 @@ export function ServiceFormDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
-            {isEditing ? "Editar serviço" : "Novo serviço"}
+            {isEditing ? "Edit service" : "New service"}
           </DialogTitle>
           <DialogDescription>
             {isEditing
-              ? "Atualize os dados do procedimento."
-              : "Cadastre um novo procedimento da clínica."}
+              ? "Update the service details."
+              : "Register a new service for your clinic."}
           </DialogDescription>
         </DialogHeader>
         <form action={formAction} className="space-y-4">
           {service && <input type="hidden" name="id" value={service.id} />}
 
           <div className="space-y-2">
-            <Label htmlFor="name">Nome</Label>
+            <Label htmlFor="name">Name</Label>
             <Input
               id="name"
               name="name"
@@ -72,7 +69,7 @@ export function ServiceFormDialog({
               required
               minLength={2}
               maxLength={100}
-              placeholder="ex.: Limpeza dental"
+              placeholder="e.g. Teeth cleaning"
               autoFocus
             />
             {state.fieldErrors?.name && (
@@ -84,7 +81,7 @@ export function ServiceFormDialog({
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="durationMinutes">Duração (min)</Label>
+              <Label htmlFor="durationMinutes">Duration (min)</Label>
               <Input
                 id="durationMinutes"
                 name="durationMinutes"
@@ -103,12 +100,12 @@ export function ServiceFormDialog({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="price">Preço (R$)</Label>
+              <Label htmlFor="price">Price ($)</Label>
               <Input
                 id="price"
                 name="price"
                 inputMode="decimal"
-                placeholder="opcional, ex.: 120,00"
+                placeholder="optional, e.g. 120.00"
                 defaultValue={centsToPriceString(service?.priceCents)}
               />
               {state.fieldErrors?.price && (
@@ -132,10 +129,10 @@ export function ServiceFormDialog({
               onClick={() => onOpenChange(false)}
               disabled={pending}
             >
-              Cancelar
+              Cancel
             </Button>
             <Button type="submit" disabled={pending}>
-              {pending ? "Salvando…" : isEditing ? "Salvar" : "Criar"}
+              {pending ? "Saving..." : isEditing ? "Save" : "Create"}
             </Button>
           </DialogFooter>
         </form>

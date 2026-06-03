@@ -14,10 +14,10 @@ export default async function ServicosPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Serviços</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Services</h1>
         <p className="text-sm text-muted-foreground">
-          Cadastre os procedimentos que sua clínica oferece. Desativar um
-          serviço o esconde do agendamento público, mas mantém o histórico.
+          Register the services your clinic offers. Deactivating a service
+          hides it from public booking but keeps the history.
         </p>
       </div>
       <ServicesPanel services={services} />

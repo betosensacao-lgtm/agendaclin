@@ -29,8 +29,8 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center p-4">
       <Card className="w-full max-w-sm">
         <CardHeader>
-          <CardTitle>agendaclin</CardTitle>
-          <CardDescription>Entre com seu email e senha</CardDescription>
+          <CardTitle>BookClinic</CardTitle>
+          <CardDescription>Sign in with your email and password</CardDescription>
         </CardHeader>
         <form action={formAction}>
           <CardContent className="space-y-4">
@@ -46,7 +46,7 @@ export default function LoginPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Senha</Label>
+              <Label htmlFor="password">Password</Label>
               <Input
                 id="password"
                 name="password"
@@ -68,15 +68,15 @@ export default function LoginPage() {
           </CardContent>
           <CardFooter className="flex flex-col gap-3">
             <Button type="submit" className="w-full" disabled={pending}>
-              {pending ? "Entrando…" : "Entrar"}
+              {pending ? "Signing in..." : "Sign in"}
             </Button>
             <p className="text-center text-sm text-muted-foreground">
-              Ainda não tem conta?{" "}
+              Don&apos;t have an account?{" "}
               <Link
                 href="/signup"
                 className="font-medium text-foreground hover:underline"
               >
-                Cadastre sua clínica
+                Register your clinic
               </Link>
             </p>
           </CardFooter>

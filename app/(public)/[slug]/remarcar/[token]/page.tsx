@@ -1,9 +1,6 @@
 /**
- * Página pública de remarcação. Mostra detalhes da consulta atual +
- * grid de slots disponíveis pra escolher novo horário (mesmo serviço,
- * mesmo profissional).
- *
- * Se booking já cancelado/finalizado, mostra aviso e link pra agendar de novo.
+ * Public reschedule page. Shows current booking details and a slot grid
+ * to pick a new time (same service, same provider).
  */
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -16,10 +13,10 @@ import { formatDuration } from "@/lib/format";
 
 import { RescheduleForm } from "./reschedule-form";
 
-const TZ = "America/Sao_Paulo";
+const TZ = "UTC";
 
 function formatDateTime(date: Date): string {
-  return date.toLocaleString("pt-BR", {
+  return date.toLocaleString("en-US", {
     timeZone: TZ,
     weekday: "long",
     day: "numeric",
@@ -51,15 +48,15 @@ export default async function RemarcarPage({
         <div className="flex items-center gap-3 text-muted-foreground">
           <AlertTriangle className="size-5 shrink-0" />
           <p className="text-sm">
-            Esta consulta já foi cancelada ou finalizada — não é mais possível
-            remarcá-la.
+            This booking has already been cancelled or completed — it can no
+            longer be rescheduled.
           </p>
         </div>
         <Link
           href={`/${slug}/agendar`}
           className={buttonVariants({ variant: "outline" })}
         >
-          Agendar nova consulta
+          Book new appointment
         </Link>
       </div>
     );
@@ -68,16 +65,16 @@ export default async function RemarcarPage({
   return (
     <div className="mx-auto w-full max-w-2xl space-y-6 px-4 py-8">
       <div>
-        <h1 className="text-xl font-bold">Remarcar agendamento</h1>
+        <h1 className="text-xl font-bold">Reschedule booking</h1>
         <p className="text-sm text-muted-foreground">
-          Escolha um novo horário com {booking.professional.name}.
+          Choose a new time with {booking.professional.name}.
         </p>
       </div>
 
-      {/* Resumo atual */}
+      {/* Current booking summary */}
       <div className="rounded-md border bg-muted/30 p-4 text-sm space-y-2">
         <p className="text-xs uppercase tracking-wide text-muted-foreground">
-          Agendamento atual
+          Current booking
         </p>
         <p>
           <span className="font-medium">{booking.service.name}</span>{" "}
@@ -101,7 +98,7 @@ export default async function RemarcarPage({
         href={`/${slug}/confirmado/${token}`}
         className={buttonVariants({ variant: "ghost", size: "sm" })}
       >
-        ← Voltar
+        ← Back
       </Link>
     </div>
   );

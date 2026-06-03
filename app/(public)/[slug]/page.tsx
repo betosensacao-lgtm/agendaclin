@@ -1,19 +1,19 @@
 /**
- * Landing pública da clínica — design premium, mobile-first, focado em conversão.
+ * Public clinic landing page — premium design, mobile-first, conversion-focused.
  *
- * Paleta:
+ * Palette:
  *   - Background: #FAFAFA (off-white)
- *   - Texto principal: #1F2937 (slate-800)
- *   - Primária: rose-600 (sofisticada, comum em estética)
- *   - Fonte: Inter (next/font, scoped a este componente)
+ *   - Body text: #1F2937 (slate-800)
+ *   - Primary: rose-600
+ *   - Font: Inter (next/font, scoped)
  *
- * Estrutura:
- *   1. Header minimalista (logo + CTA pequeno)
- *   2. Hero (texto à esquerda, visual decorativo à direita em lg)
- *   3. Banner de Pré-avaliação Inteligente (sobreposto ao hero)
- *   4. Grid de serviços (cards premium com badge de duração/preço e CTA próprio)
- *   5. Contato (grid com ícones lucide)
- *   6. CTA final em destaque (gradient rose)
+ * Structure:
+ *   1. Sticky header (logo + CTA)
+ *   2. Hero (copy left, decorative visual right on lg+)
+ *   3. Smart Pre-Assessment banner (teaser)
+ *   4. Services grid (interactive cards with price/duration badges)
+ *   5. Contact section (icon grid)
+ *   6. Final CTA (rose gradient banner)
  */
 import {
   ArrowRight,
@@ -73,7 +73,7 @@ export default async function ClinicLandingPage({
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={clinic.logoUrl}
-                alt={`Logo ${clinic.name}`}
+                alt={`${clinic.name} logo`}
                 className="size-9 shrink-0 rounded-lg border border-slate-200 bg-white object-contain p-1"
               />
             ) : (
@@ -88,7 +88,7 @@ export default async function ClinicLandingPage({
               href={agendarHref}
               className="inline-flex h-9 items-center gap-1.5 rounded-full bg-rose-600 px-4 text-sm font-medium text-white shadow-sm transition hover:bg-rose-700"
             >
-              Agendar
+              Book
               <ArrowRight className="size-3.5" />
             </Link>
           )}
@@ -102,11 +102,11 @@ export default async function ClinicLandingPage({
         <div className="pointer-events-none absolute -left-24 top-40 size-72 rounded-full bg-pink-200/20 blur-3xl" />
 
         <div className="relative mx-auto grid max-w-6xl gap-12 px-4 py-16 lg:grid-cols-2 lg:gap-16 lg:px-8 lg:py-24">
-          {/* Coluna esquerda: copy */}
+          {/* Left column: copy */}
           <div className="flex flex-col justify-center space-y-7">
             <span className="inline-flex w-fit items-center gap-2 rounded-full border border-rose-200/70 bg-rose-50 px-3 py-1 text-xs font-medium text-rose-700">
               <Sparkles className="size-3" />
-              Agendamento online
+              Online booking
             </span>
 
             <div className="space-y-5">
@@ -114,8 +114,8 @@ export default async function ClinicLandingPage({
                 {clinic.name}
               </h1>
               <p className="max-w-md text-base leading-relaxed text-slate-600 sm:text-lg">
-                Agende sua consulta em minutos, com conforto e praticidade. Sem
-                ligações, sem espera — tudo na palma da sua mão.
+                Schedule your appointment in minutes — convenient, hassle-free,
+                and available 24/7. No phone calls needed.
               </p>
             </div>
 
@@ -125,13 +125,12 @@ export default async function ClinicLandingPage({
                   href={agendarHref}
                   className="group inline-flex h-12 items-center gap-2 rounded-full bg-rose-600 px-7 text-sm font-semibold text-white shadow-md shadow-rose-600/20 transition hover:bg-rose-700 hover:shadow-lg"
                 >
-                  Agendar consulta
+                  Book an appointment
                   <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
                 </Link>
                 <span className="text-sm text-slate-500">
-                  {services.length} serviço
-                  {services.length !== 1 ? "s" : ""} disponíve
-                  {services.length !== 1 ? "is" : "l"}
+                  {services.length} service
+                  {services.length !== 1 ? "s" : ""} available
                 </span>
               </div>
             )}
@@ -139,36 +138,34 @@ export default async function ClinicLandingPage({
             <ul className="flex flex-wrap items-center gap-x-6 gap-y-2 pt-2 text-xs text-slate-500">
               <li className="flex items-center gap-1.5">
                 <ShieldCheck className="size-3.5 text-rose-600" />
-                Confirmação imediata
+                Instant confirmation
               </li>
               <li className="flex items-center gap-1.5">
                 <Clock className="size-3.5 text-rose-600" />
-                Disponível 24/7
+                Available 24/7
               </li>
               <li className="flex items-center gap-1.5">
                 <CheckCircle2 className="size-3.5 text-rose-600" />
-                Sem precisar ligar
+                No phone calls
               </li>
             </ul>
           </div>
 
-          {/* Coluna direita: visual decorativo (apenas lg+) */}
+          {/* Right column: decorative visual (lg+ only) */}
           <div className="relative hidden lg:block">
             <div className="relative mx-auto aspect-square w-full max-w-md">
-              {/* Card principal */}
+              {/* Main card */}
               <div className="absolute inset-0 overflow-hidden rounded-[2rem] bg-gradient-to-br from-rose-100 via-rose-50 to-pink-100 shadow-xl shadow-rose-200/40">
-                {/* Padrão decorativo: círculos sutis */}
                 <div className="absolute right-8 top-8 size-32 rounded-full border border-white/40" />
                 <div className="absolute right-16 top-16 size-20 rounded-full border border-white/60" />
                 <div className="absolute -bottom-8 -left-8 size-48 rounded-full bg-white/30" />
 
-                {/* Logo/inicial central */}
                 <div className="absolute inset-0 flex items-center justify-center">
                   {clinic.logoUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={clinic.logoUrl}
-                      alt={`Logo ${clinic.name}`}
+                      alt={`${clinic.name} logo`}
                       className="size-36 rounded-3xl border border-white/60 bg-white object-contain p-4 shadow-lg"
                     />
                   ) : (
@@ -179,32 +176,30 @@ export default async function ClinicLandingPage({
                 </div>
               </div>
 
-              {/* Chip flutuante: confirmação */}
+              {/* Floating chip: confirmation */}
               <div className="absolute -left-6 top-12 flex items-center gap-2.5 rounded-full bg-white px-4 py-2.5 shadow-lg ring-1 ring-slate-200/70">
                 <div className="flex size-7 items-center justify-center rounded-full bg-emerald-100">
                   <CheckCircle2 className="size-4 text-emerald-600" />
                 </div>
                 <div>
                   <p className="text-xs font-semibold text-[#1F2937]">
-                    Consulta confirmada
+                    Appointment confirmed
                   </p>
-                  <p className="text-[10px] text-slate-500">
-                    em menos de 1 minuto
-                  </p>
+                  <p className="text-[10px] text-slate-500">in under 1 minute</p>
                 </div>
               </div>
 
-              {/* Chip flutuante: agenda */}
+              {/* Floating chip: schedule */}
               <div className="absolute -bottom-4 -right-4 flex items-center gap-2.5 rounded-full bg-white px-4 py-2.5 shadow-lg ring-1 ring-slate-200/70">
                 <div className="flex size-7 items-center justify-center rounded-full bg-rose-100">
                   <Calendar className="size-4 text-rose-600" />
                 </div>
                 <div>
                   <p className="text-xs font-semibold text-[#1F2937]">
-                    Seu horário, sua escolha
+                    Your time, your choice
                   </p>
                   <p className="text-[10px] text-slate-500">
-                    de segunda a sábado
+                    Monday through Saturday
                   </p>
                 </div>
               </div>
@@ -213,7 +208,7 @@ export default async function ClinicLandingPage({
         </div>
       </section>
 
-      {/* ───────── BANNER: Pré-avaliação Inteligente ───────── */}
+      {/* ───────── SMART PRE-ASSESSMENT BANNER ───────── */}
       <section className="relative z-10 mx-auto max-w-6xl px-4 lg:px-8">
         <div className="-mt-6 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm sm:gap-6 sm:p-6">
           <div className="flex items-center gap-4">
@@ -223,15 +218,15 @@ export default async function ClinicLandingPage({
             <div>
               <div className="flex flex-wrap items-center gap-2">
                 <p className="font-semibold tracking-tight">
-                  Pré-avaliação Inteligente
+                  Smart Pre-Assessment
                 </p>
                 <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-700">
-                  Em breve
+                  Coming soon
                 </span>
               </div>
               <p className="mt-0.5 max-w-md text-sm text-slate-600">
-                Responda algumas perguntas e a clínica já recebe um pré-diagnóstico
-                para agilizar seu atendimento.
+                Answer a few questions and the clinic receives a pre-assessment
+                to streamline your visit.
               </p>
             </div>
           </div>
@@ -240,25 +235,25 @@ export default async function ClinicLandingPage({
               href={agendarHref}
               className="inline-flex items-center gap-1.5 text-sm font-semibold text-rose-600 hover:text-rose-700"
             >
-              Agendar agora
+              Book now
               <ArrowRight className="size-4" />
             </Link>
           )}
         </div>
       </section>
 
-      {/* ───────────────── SERVIÇOS ───────────────── */}
+      {/* ───────────────── SERVICES ───────────────── */}
       <section className="mx-auto max-w-6xl px-4 py-16 lg:px-8 lg:py-20">
         <div className="mx-auto mb-12 max-w-2xl space-y-3 text-center">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-rose-600">
-            Serviços
+            Services
           </p>
           <h2 className="text-3xl font-bold tracking-tight text-[#1F2937] sm:text-4xl">
-            Tudo que oferecemos
+            What we offer
           </h2>
           <p className="text-slate-600">
-            Escolha o serviço, o profissional e o melhor horário para você. Em
-            poucos cliques.
+            Choose your service, provider, and the best time for you — in just
+            a few clicks.
           </p>
         </div>
 
@@ -266,10 +261,10 @@ export default async function ClinicLandingPage({
           <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center">
             <Stethoscope className="mx-auto size-10 text-slate-300" />
             <p className="mt-4 text-sm text-slate-500">
-              Nenhum serviço disponível no momento.
+              No services available at the moment.
             </p>
             <p className="text-sm text-slate-500">
-              Entre em contato com a clínica.
+              Please contact the clinic directly.
             </p>
           </div>
         ) : (
@@ -287,19 +282,19 @@ export default async function ClinicLandingPage({
         )}
       </section>
 
-      {/* ───────────────── CONTATO ───────────────── */}
+      {/* ───────────────── CONTACT ───────────────── */}
       {hasContactInfo && (
         <section className="border-y border-slate-200/80 bg-white">
           <div className="mx-auto max-w-6xl px-4 py-16 lg:px-8 lg:py-20">
             <div className="mx-auto mb-12 max-w-2xl space-y-3 text-center">
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-rose-600">
-                Contato
+                Contact
               </p>
               <h2 className="text-3xl font-bold tracking-tight text-[#1F2937] sm:text-4xl">
-                Onde estamos
+                Find us
               </h2>
               <p className="text-slate-600">
-                Estamos prontos para te receber com todo cuidado e conforto.
+                We&apos;re ready to welcome you with care and comfort.
               </p>
             </div>
 
@@ -307,7 +302,7 @@ export default async function ClinicLandingPage({
               {clinic.address && (
                 <ContactCard
                   icon={<MapPin className="size-5" />}
-                  label="Endereço"
+                  label="Address"
                 >
                   <span className="whitespace-pre-line">{clinic.address}</span>
                 </ContactCard>
@@ -315,7 +310,7 @@ export default async function ClinicLandingPage({
               {clinic.hoursText && (
                 <ContactCard
                   icon={<Clock className="size-5" />}
-                  label="Horário"
+                  label="Hours"
                 >
                   {clinic.hoursText}
                 </ContactCard>
@@ -323,7 +318,7 @@ export default async function ClinicLandingPage({
               {clinic.phone && (
                 <ContactCard
                   icon={<Phone className="size-5" />}
-                  label="Telefone"
+                  label="Phone"
                 >
                   <a
                     href={`tel:${clinic.phone.replace(/\D/g, "")}`}
@@ -336,7 +331,7 @@ export default async function ClinicLandingPage({
               {clinic.contactEmail && (
                 <ContactCard
                   icon={<Mail className="size-5" />}
-                  label="E-mail"
+                  label="Email"
                 >
                   <a
                     href={`mailto:${clinic.contactEmail}`}
@@ -351,21 +346,20 @@ export default async function ClinicLandingPage({
         </section>
       )}
 
-      {/* ───────────────── CTA FINAL ───────────────── */}
+      {/* ───────────────── FINAL CTA ───────────────── */}
       {services.length > 0 && (
         <section className="mx-auto max-w-6xl px-4 py-16 lg:px-8 lg:py-20">
           <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-rose-600 via-rose-500 to-pink-500 p-10 text-center text-white shadow-xl shadow-rose-300/30 sm:p-16">
-            {/* Decoração */}
             <div className="pointer-events-none absolute -right-20 -top-20 size-64 rounded-full bg-white/10" />
             <div className="pointer-events-none absolute -bottom-24 -left-16 size-72 rounded-full bg-white/10" />
 
             <div className="relative mx-auto max-w-xl space-y-6">
               <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-                Pronto para cuidar de você?
+                Ready to book your visit?
               </h2>
               <p className="text-rose-50/95">
-                Agende online em menos de 1 minuto. Confirmação imediata, sem
-                precisar ligar.
+                Book online in under 1 minute. Instant confirmation, no phone
+                calls required.
               </p>
               <Link
                 href={agendarHref}
@@ -375,7 +369,7 @@ export default async function ClinicLandingPage({
                 )}
               >
                 <Calendar className="mr-2 size-4" />
-                Agendar consulta
+                Book an appointment
               </Link>
             </div>
           </div>
@@ -385,7 +379,7 @@ export default async function ClinicLandingPage({
   );
 }
 
-// ──────────────── Componentes auxiliares ────────────────
+// ──────────────── Helper components ────────────────
 
 function ServiceCard({
   name,
@@ -400,17 +394,14 @@ function ServiceCard({
 }) {
   return (
     <div className="group relative flex flex-col rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-rose-200 hover:shadow-md">
-      {/* Ícone */}
       <div className="mb-5 flex size-11 items-center justify-center rounded-xl bg-rose-50 text-rose-600 transition-colors group-hover:bg-rose-600 group-hover:text-white">
         <Stethoscope className="size-5" />
       </div>
 
-      {/* Nome */}
       <h3 className="text-lg font-semibold leading-snug tracking-tight text-[#1F2937]">
         {name}
       </h3>
 
-      {/* Badges */}
       <div className="mt-3 flex flex-wrap gap-2">
         <Badge
           variant="secondary"
@@ -429,12 +420,11 @@ function ServiceCard({
         )}
       </div>
 
-      {/* CTA */}
       <Link
         href={href}
         className="mt-6 inline-flex items-center gap-1.5 text-sm font-semibold text-rose-600 transition-colors hover:text-rose-700"
       >
-        Agendar
+        Book
         <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
       </Link>
     </div>

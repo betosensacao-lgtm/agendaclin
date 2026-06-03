@@ -22,11 +22,10 @@ export default async function ProfissionaisPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Profissionais</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Providers</h1>
         <p className="text-sm text-muted-foreground">
-          Cadastre dentistas, esteticistas e demais profissionais. Vincule
-          os serviços que cada um atende — só esses aparecem pro paciente
-          escolher.
+          Register your dentists, therapists and other providers. Link the
+          services each one offers — only those appear for patients to choose.
         </p>
       </div>
       <ProfessionalsPanel

@@ -1,27 +1,25 @@
 /**
- * Helpers de timezone — single source of truth para conversões de fuso.
+ * Timezone helpers — single source of truth for timezone conversions.
  *
- * Convenções do projeto:
- *   - Banco guarda timestamps em UTC (`timestamptz`).
- *   - UI/email usam o fuso da clínica (`America/Sao_Paulo` no MVP).
- *   - A clínica define o `timezone` em sua linha (table `clinics.timezone`),
- *     mas no MVP é fixo. Mesmo assim, sempre passamos o `tz` como param
- *     pra não acoplar.
+ * Conventions:
+ *   - Database stores timestamps in UTC (timestamptz).
+ *   - UI/emails use the clinic's timezone (UTC as default for international use).
+ *   - Always pass `tz` as a param — never hard-code the timezone in components.
  */
 import { fromZonedTime } from "date-fns-tz";
 
-export const DEFAULT_TZ = "America/Sao_Paulo";
+export const DEFAULT_TZ = "UTC";
 
 /**
- * Converte uma data local (YYYY-MM-DD) no fuso da clínica para o início e
- * fim daquele dia em UTC. Útil para filtros tipo "agendamentos do dia X".
+ * Converts a local date (YYYY-MM-DD) in the clinic's timezone to the
+ * start and end of that day in UTC. Useful for "bookings on day X" filters.
  */
 export function dayRangeUtc(
   ymd: string,
   tz: string = DEFAULT_TZ,
 ): { from: Date; to: Date } {
   const from = fromZonedTime(`${ymd}T00:00:00`, tz);
-  // 24h depois ainda em local time (não em UTC) para lidar com DST.
+  // Next day in local time (not UTC) to handle DST correctly.
   const next = (() => {
     const d = new Date(`${ymd}T00:00:00Z`);
     d.setUTCDate(d.getUTCDate() + 1);
@@ -32,18 +30,16 @@ export function dayRangeUtc(
 }
 
 /**
- * Range de uma semana começando no domingo do dia local `ymd`.
- * Retorna {from, to} em UTC. Usado pela visão "semana" da /agenda.
+ * Range for the week starting on the Sunday of local `ymd`.
+ * Returns {from, to} in UTC. Used by the "week" view in /agenda.
  */
 export function weekRangeUtc(
   ymd: string,
   tz: string = DEFAULT_TZ,
 ): { from: Date; to: Date; days: string[] } {
-  // Calcula o domingo da semana do `ymd` em local time (UTC arithmetic
-  // funciona porque YMD é mesmo dia em qualquer fuso).
   const [y, m, d] = ymd.split("-").map(Number);
   const date = new Date(Date.UTC(y, m - 1, d));
-  const weekday = date.getUTCDay(); // 0 = domingo
+  const weekday = date.getUTCDay(); // 0 = Sunday
   date.setUTCDate(date.getUTCDate() - weekday);
 
   const days: string[] = [];
@@ -60,16 +56,15 @@ export function weekRangeUtc(
   return { from, to, days };
 }
 
-/** Retorna "YYYY-MM-DD" no fuso da clínica para a data atual. */
+/** Returns "YYYY-MM-DD" in the clinic's timezone for today. */
 export function todayInTz(tz: string = DEFAULT_TZ): string {
-  // sv-SE formata como "YYYY-MM-DD HH:MM:SS"; pegamos só o YMD.
   const parts = new Date().toLocaleString("sv-SE", { timeZone: tz });
   return parts.slice(0, 10);
 }
 
-/** Formata um Date como "HH:MM" no fuso da clínica. */
+/** Formats a Date as "HH:MM" in the clinic's timezone. */
 export function formatTime(d: Date, tz: string = DEFAULT_TZ): string {
-  return d.toLocaleTimeString("pt-BR", {
+  return d.toLocaleTimeString("en-US", {
     timeZone: tz,
     hour: "2-digit",
     minute: "2-digit",
@@ -77,19 +72,19 @@ export function formatTime(d: Date, tz: string = DEFAULT_TZ): string {
   });
 }
 
-/** Formata um Date como "ddd, dd/MM" no fuso da clínica. */
+/** Formats a Date as "ddd, MM/dd" in the clinic's timezone. */
 export function formatShortDate(d: Date, tz: string = DEFAULT_TZ): string {
-  return d.toLocaleDateString("pt-BR", {
+  return d.toLocaleDateString("en-US", {
     timeZone: tz,
     weekday: "short",
-    day: "2-digit",
     month: "2-digit",
+    day: "2-digit",
   });
 }
 
-/** Formata um Date como "dddd, dd 'de' MMMM" no fuso da clínica. */
+/** Formats a Date as "Weekday, Month Day" in the clinic's timezone. */
 export function formatLongDate(d: Date, tz: string = DEFAULT_TZ): string {
-  return d.toLocaleDateString("pt-BR", {
+  return d.toLocaleDateString("en-US", {
     timeZone: tz,
     weekday: "long",
     day: "numeric",

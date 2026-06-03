@@ -1,6 +1,6 @@
 /**
- * Página de confirmação do agendamento.
- * Exibe o resumo da consulta e um link para cancelar.
+ * Booking confirmation page.
+ * Shows a summary and links to reschedule/cancel.
  */
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -11,10 +11,10 @@ import { getBookingByToken } from "@/lib/db/queries/bookings";
 import { getClinicBySlug } from "@/lib/db/queries/clinics";
 import { formatDuration } from "@/lib/format";
 
-const TZ = "America/Sao_Paulo";
+const TZ = "UTC";
 
 function formatDateTime(date: Date): string {
-  return date.toLocaleString("pt-BR", {
+  return date.toLocaleString("en-US", {
     timeZone: TZ,
     weekday: "long",
     day: "numeric",
@@ -52,14 +52,14 @@ export default async function ConfirmadoPage({
             </div>
             <div>
               <h1 className="text-lg font-bold text-foreground">
-                Consulta cancelada
+                Booking cancelled
               </h1>
-              <p className="text-sm">Este agendamento foi cancelado.</p>
+              <p className="text-sm">This appointment has been cancelled.</p>
             </div>
           </div>
 
           <Link href={`/${slug}/agendar`} className={buttonVariants({ variant: "outline" })}>
-            Agendar novamente
+            Book again
           </Link>
         </>
       ) : (
@@ -69,20 +69,20 @@ export default async function ConfirmadoPage({
               <CheckCircle2 className="size-6" />
             </div>
             <div>
-              <h1 className="text-lg font-bold">Agendamento confirmado!</h1>
+              <h1 className="text-lg font-bold">Booking confirmed!</h1>
               <p className="text-sm text-muted-foreground">
-                Vemos você em breve, {booking.patientName.split(" ")[0]}.
+                See you soon, {booking.patientName.split(" ")[0]}.
               </p>
             </div>
           </div>
 
-          {/* Resumo */}
+          {/* Summary */}
           <div className="rounded-md border p-4 space-y-3 text-sm">
             <div className="grid grid-cols-[120px_1fr] gap-y-2">
-              <span className="text-muted-foreground">Clínica</span>
+              <span className="text-muted-foreground">Clinic</span>
               <span className="font-medium">{clinic.name}</span>
 
-              <span className="text-muted-foreground">Serviço</span>
+              <span className="text-muted-foreground">Service</span>
               <span>
                 {booking.service.name}{" "}
                 <span className="text-muted-foreground">
@@ -90,44 +90,44 @@ export default async function ConfirmadoPage({
                 </span>
               </span>
 
-              <span className="text-muted-foreground">Profissional</span>
+              <span className="text-muted-foreground">Provider</span>
               <span>{booking.professional.name}</span>
 
-              <span className="text-muted-foreground">Data e hora</span>
+              <span className="text-muted-foreground">Date & time</span>
               <span className="capitalize">
                 {formatDateTime(booking.startsAt)}
               </span>
 
-              <span className="text-muted-foreground">Paciente</span>
+              <span className="text-muted-foreground">Patient</span>
               <span>{booking.patientName}</span>
 
-              <span className="text-muted-foreground">E-mail</span>
+              <span className="text-muted-foreground">Email</span>
               <span>{booking.patientEmail}</span>
 
-              <span className="text-muted-foreground">Telefone</span>
+              <span className="text-muted-foreground">Phone</span>
               <span>{booking.patientPhone}</span>
             </div>
           </div>
 
-          {/* Remarcar / cancelar */}
+          {/* Reschedule / cancel */}
           <div className="rounded-md border border-dashed p-4 text-sm space-y-3">
-            <p className="font-medium">Precisa mudar algo?</p>
+            <p className="font-medium">Need to make a change?</p>
             <p className="text-muted-foreground">
-              Você pode remarcar ou cancelar até o dia da consulta —
-              sem precisar ligar.
+              You can reschedule or cancel up to the day of your
+              appointment — no phone calls needed.
             </p>
             <div className="flex flex-wrap gap-2">
               <Link
                 href={`/${slug}/remarcar/${token}`}
                 className={buttonVariants({ size: "sm" })}
               >
-                Remarcar
+                Reschedule
               </Link>
               <Link
                 href={`/${slug}/cancelar/${token}`}
                 className={buttonVariants({ variant: "outline", size: "sm" })}
               >
-                Cancelar
+                Cancel
               </Link>
             </div>
           </div>

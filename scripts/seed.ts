@@ -36,22 +36,22 @@ import {
 const SUPABASE_URL = required("NEXT_PUBLIC_SUPABASE_URL");
 const SUPABASE_SERVICE_KEY = required("SUPABASE_SERVICE_ROLE_KEY");
 
-const ADMIN_EMAIL = process.env.SEED_ADMIN_EMAIL ?? "admin@agendaclin.local";
+const ADMIN_EMAIL = process.env.SEED_ADMIN_EMAIL ?? "admin@bookclinic.local";
 const ADMIN_NAME = process.env.SEED_ADMIN_NAME ?? "Admin Demo";
-const CLINIC_SLUG = process.env.SEED_CLINIC_SLUG ?? "clinica-teste";
-const CLINIC_NAME = process.env.SEED_CLINIC_NAME ?? "Clínica Teste";
+const CLINIC_SLUG = process.env.SEED_CLINIC_SLUG ?? "demo-clinic";
+const CLINIC_NAME = process.env.SEED_CLINIC_NAME ?? "Demo Clinic";
 
 function required(name: string): string {
   const v = process.env[name];
   if (!v) {
-    console.error(`Variável ${name} não definida em .env.local`);
+    console.error(`Environment variable ${name} not found in .env.local`);
     process.exit(1);
   }
   return v;
 }
 
 async function main() {
-  console.log("→ Seed iniciado");
+  console.log("→ Starting seed");
 
   // 1) Clínica --------------------------------------------------------------
   let [clinic] = await db
@@ -68,9 +68,9 @@ async function main() {
         contactEmail: ADMIN_EMAIL,
       })
       .returning();
-    console.log(`  ✓ Clínica criada: ${clinic.name} (${clinic.id})`);
+    console.log(`  ✓ Clinic created: ${clinic.name} (${clinic.id})`);
   } else {
-    console.log(`  ↺ Clínica já existia: ${clinic.name}`);
+    console.log(`  ↺ Clinic already exists: ${clinic.name}`);
   }
 
   // 2) Auth user no Supabase Auth -------------------------------------------
@@ -98,9 +98,9 @@ async function main() {
     });
     if (error) throw error;
     authUserId = data.user!.id;
-    console.log(`  ✓ Auth user criado: ${ADMIN_EMAIL} (${authUserId})`);
+    console.log(`  ✓ Auth user created: ${ADMIN_EMAIL} (${authUserId})`);
   } else {
-    console.log(`  ↺ Auth user já existia: ${ADMIN_EMAIL}`);
+    console.log(`  ↺ Auth user already exists: ${ADMIN_EMAIL}`);
   }
 
   // 3) public.users (espelho) -----------------------------------------------
@@ -117,13 +117,13 @@ async function main() {
       name: ADMIN_NAME,
       email: ADMIN_EMAIL,
     });
-    console.log(`  ✓ users row criada`);
+    console.log(`  ✓ users row created`);
   } else {
-    console.log(`  ↺ users row já existia`);
+    console.log(`  ↺ users row already exists`);
   }
 
   // 4) Service --------------------------------------------------------------
-  const SERVICE_NAME = "Limpeza dental";
+  const SERVICE_NAME = "Teeth Cleaning";
   let [service] = await db
     .select()
     .from(services)
@@ -138,16 +138,16 @@ async function main() {
         clinicId: clinic.id,
         name: SERVICE_NAME,
         durationMinutes: 30,
-        priceCents: 12000, // R$ 120,00
+        priceCents: 12000, // $120.00
       })
       .returning();
-    console.log(`  ✓ Service criado: ${service.name}`);
+    console.log(`  ✓ Service created: ${service.name}`);
   } else {
-    console.log(`  ↺ Service já existia: ${service.name}`);
+    console.log(`  ↺ Service already exists: ${service.name}`);
   }
 
   // 5) Professional ---------------------------------------------------------
-  const PRO_NAME = "Dra. Ana";
+  const PRO_NAME = "Dr. Anna";
   let [pro] = await db
     .select()
     .from(professionals)
@@ -166,9 +166,9 @@ async function main() {
         name: PRO_NAME,
       })
       .returning();
-    console.log(`  ✓ Professional criado: ${pro.name}`);
+    console.log(`  ✓ Provider created: ${pro.name}`);
   } else {
-    console.log(`  ↺ Professional já existia: ${pro.name}`);
+    console.log(`  ↺ Provider already exists: ${pro.name}`);
   }
 
   // 6) professional_services (link) -----------------------------------------
@@ -187,24 +187,24 @@ async function main() {
       professionalId: pro.id,
       serviceId: service.id,
     });
-    console.log(`  ✓ professional_services link criado`);
+    console.log(`  ✓ professional_services link created`);
   } else {
-    console.log(`  ↺ professional_services link já existia`);
+    console.log(`  ↺ professional_services link already exists`);
   }
 
   // Final -------------------------------------------------------------------
-  console.log("\n✓ Seed concluído");
+  console.log("\n✓ Seed complete");
 
   if (generatedPassword) {
-    console.log("\n────────── CREDENCIAIS DO ADMIN (mostradas só uma vez) ──────────");
-    console.log(`  Email:  ${ADMIN_EMAIL}`);
-    console.log(`  Senha:  ${generatedPassword}`);
-    console.log("  Guarde no seu gerenciador de senhas.");
-    console.log("──────────────────────────────────────────────────────────────────");
+    console.log("\n────────── ADMIN CREDENTIALS (shown only once) ──────────");
+    console.log(`  Email:    ${ADMIN_EMAIL}`);
+    console.log(`  Password: ${generatedPassword}`);
+    console.log("  Save these in your password manager.");
+    console.log("──────────────────────────────────────────────────────────");
   } else {
     console.log(
-      "\nObs: usuário já existia, senha não foi alterada. " +
-        "Pra resetar use o painel Supabase (Auth → Users).",
+      "\nNote: user already existed, password was not changed. " +
+        "To reset it use the Supabase dashboard (Auth → Users).",
     );
   }
 }
@@ -215,7 +215,7 @@ main()
     process.exit(0);
   })
   .catch(async (err) => {
-    console.error("✗ Seed falhou:");
+    console.error("✗ Seed failed:");
     console.error(err);
     await closeDbCli().catch(() => {});
     process.exit(1);

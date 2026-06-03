@@ -83,11 +83,11 @@ export default async function AgendaPage({
     <div className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Agenda</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Schedule</h1>
           <p className="text-sm text-muted-foreground">
-            {activeCount} consulta{activeCount !== 1 ? "s" : ""}{" "}
-            {view === "week" ? "nesta semana" : "neste dia"}
-            {professionalId && " (filtro ativo)"}.
+            {activeCount} appointment{activeCount !== 1 ? "s" : ""}{" "}
+            {view === "week" ? "this week" : "today"}
+            {professionalId && " (filter active)"}.
           </p>
         </div>
       </div>
@@ -101,7 +101,7 @@ export default async function AgendaPage({
 
       {bookings.length === 0 ? (
         <p className="rounded-md border p-6 text-center text-sm text-muted-foreground">
-          Nenhuma consulta neste período.
+          No appointments in this period.
         </p>
       ) : (
         <div className="space-y-6">
@@ -121,7 +121,7 @@ export default async function AgendaPage({
 
                 {dayBookings.length === 0 ? (
                   <p className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">
-                    Nenhuma consulta.
+                    No appointments.
                   </p>
                 ) : (
                   <ul className="divide-y rounded-md border">

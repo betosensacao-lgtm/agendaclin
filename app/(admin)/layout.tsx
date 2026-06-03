@@ -1,10 +1,6 @@
 /**
- * Layout do grupo (admin). requireRole('admin') redireciona pra /login
- * se anônimo OU se role != admin. Toda página filha pode assumir que
- * o usuário existe.
- *
- * Também checa se o onboarding está pendente — se sim, mostra banner
- * dispensável no topo (não bloqueia, mas lembra).
+ * Admin group layout. requireRole('admin') redirects to /login if
+ * unauthenticated or if role != admin.
  */
 import { Sparkles } from "lucide-react";
 import Link from "next/link";
@@ -29,26 +25,26 @@ export default async function AdminLayout({
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
           <div className="flex items-center gap-6">
             <Link href="/agenda" className="font-semibold">
-              agendaclin
+              BookClinic
             </Link>
             <nav className="flex items-center gap-4 text-sm text-muted-foreground">
               <Link href="/agenda" className="hover:text-foreground">
-                Agenda
+                Schedule
               </Link>
               <Link href="/consultas" className="hover:text-foreground">
-                Consultas
+                Appointments
               </Link>
               <Link href="/servicos" className="hover:text-foreground">
-                Serviços
+                Services
               </Link>
               <Link href="/profissionais" className="hover:text-foreground">
-                Profissionais
+                Providers
               </Link>
               <Link href="/horarios" className="hover:text-foreground">
-                Horários
+                Availability
               </Link>
               <Link href="/clinica" className="hover:text-foreground">
-                Clínica
+                Clinic
               </Link>
             </nav>
           </div>
@@ -59,7 +55,7 @@ export default async function AdminLayout({
                 type="submit"
                 className="text-muted-foreground hover:text-foreground"
               >
-                Sair
+                Sign out
               </button>
             </form>
           </div>
@@ -72,15 +68,15 @@ export default async function AdminLayout({
             <div className="flex items-center gap-2">
               <Sparkles className="size-4 text-blue-600 dark:text-blue-400" />
               <span>
-                <strong>Vamos configurar sua clínica?</strong> Em 5 passos você
-                fica pronto pra receber agendamentos.
+                <strong>Let&apos;s set up your clinic!</strong> Complete 5 steps
+                to start receiving bookings.
               </span>
             </div>
             <Link
               href="/onboarding"
               className={buttonVariants({ size: "sm" })}
             >
-              Continuar configuração
+              Continue setup
             </Link>
           </div>
         </div>

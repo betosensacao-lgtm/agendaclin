@@ -1,9 +1,6 @@
 /**
- * Wizard de onboarding pra clínicas novas. Lista 5 passos com status
- * (✓ done / ○ pendente) e links pra cada tela correspondente.
- *
- * Não bloqueia — admin pode pular pro /agenda a qualquer momento.
- * Layout admin marca essa página como "pendente" se onboarding_completed=false.
+ * Onboarding wizard for new clinics. Lists 5 steps with status
+ * (✓ done / ○ pending) and links to each corresponding screen.
  */
 import { Check, Circle, ExternalLink } from "lucide-react";
 import Link from "next/link";
@@ -24,10 +21,7 @@ export default async function OnboardingPage() {
     getOnboardingStatus(user.clinicId),
   ]);
 
-  if (!clinic) {
-    // Inconsistência improvável (admin sem clínica), mas defensivo.
-    return null;
-  }
+  if (!clinic) return null;
 
   const steps: Array<{
     n: number;
@@ -38,39 +32,39 @@ export default async function OnboardingPage() {
   }> = [
     {
       n: 1,
-      title: "Dados da clínica",
+      title: "Clinic details",
       description:
-        "Telefone, endereço e horário de funcionamento — aparecem na sua página pública.",
+        "Phone, address and business hours — displayed on your public page.",
       href: "/clinica",
       done: status.clinicConfigured,
     },
     {
       n: 2,
-      title: "Cadastre serviços",
-      description: "Ex.: Limpeza, avaliação, restauração — com duração e preço.",
+      title: "Add services",
+      description: "e.g. Cleaning, consultation, treatment — with duration and price.",
       href: "/servicos",
       done: status.hasService,
     },
     {
       n: 3,
-      title: "Cadastre profissionais",
-      description: "Quem atende cada serviço.",
+      title: "Add providers",
+      description: "Who attends each service.",
       href: "/profissionais",
       done: status.hasProfessional,
     },
     {
       n: 4,
-      title: "Configure horários",
-      description: "Faixas de atendimento por dia da semana + bloqueios pontuais.",
+      title: "Set availability",
+      description: "Weekly schedule per provider + specific time blocks.",
       href: "/horarios",
       done: status.hasWeeklyAvailability,
     },
     {
       n: 5,
-      title: "Compartilhe seu link",
-      description: "Mande pro WhatsApp dos pacientes, coloca no Instagram, no site…",
+      title: "Share your link",
+      description: "Send it to patients, post on Instagram, add to your website…",
       href: `/${clinic.slug}`,
-      done: false, // este passo é manual — não temos como detectar
+      done: false,
     },
   ];
 
@@ -85,18 +79,18 @@ export default async function OnboardingPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">
-          Bem-vindo, {clinic.name}!
+          Welcome, {clinic.name}!
         </h1>
         <p className="text-sm text-muted-foreground">
-          Em alguns minutos sua clínica está pronta pra receber agendamentos.
+          In just a few minutes your clinic will be ready to receive bookings.
         </p>
       </div>
 
-      {/* Progresso */}
+      {/* Progress */}
       <div className="space-y-2">
         <div className="flex items-center justify-between text-sm">
           <span className="font-medium">
-            {completedCount} de {steps.length} passos
+            {completedCount} of {steps.length} steps
           </span>
           <span className="text-muted-foreground">
             {Math.round((completedCount / steps.length) * 100)}%
@@ -110,7 +104,7 @@ export default async function OnboardingPage() {
         </div>
       </div>
 
-      {/* Passos */}
+      {/* Steps */}
       <ol className="space-y-3">
         {steps.map((step) => (
           <li
@@ -140,7 +134,7 @@ export default async function OnboardingPage() {
                   target={step.n === 5 ? "_blank" : undefined}
                   rel={step.n === 5 ? "noopener noreferrer" : undefined}
                 >
-                  {step.done ? "Revisar" : "Configurar"}
+                  {step.done ? "Review" : "Set up"}
                   {step.n === 5 && <ExternalLink className="size-3" />}
                 </Link>
               </div>
@@ -155,16 +149,16 @@ export default async function OnboardingPage() {
         ))}
       </ol>
 
-      {/* Conclusão */}
+      {/* Completion */}
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border bg-muted/30 p-4">
         <div className="text-sm">
           {allRequiredDone ? (
             <span className="font-medium">
-              Pronto pra receber agendamentos! 🎉
+              Ready to receive bookings! 🎉
             </span>
           ) : (
             <span className="text-muted-foreground">
-              Complete os passos 1-4 pra ativar agendamentos.
+              Complete steps 1–4 to activate bookings.
             </span>
           )}
         </div>
@@ -173,11 +167,11 @@ export default async function OnboardingPage() {
             href="/agenda"
             className={buttonVariants({ variant: "ghost" })}
           >
-            Pular por agora
+            Skip for now
           </Link>
           <form action={completeOnboardingAction}>
             <Button type="submit" disabled={!allRequiredDone}>
-              Concluir onboarding
+              Complete setup
             </Button>
           </form>
         </div>

@@ -45,7 +45,7 @@ export function AgendaFilters({
     <div className="flex flex-wrap items-end gap-3 rounded-md border bg-muted/30 p-3">
       <div className="space-y-1">
         <Label htmlFor="date" className="text-xs">
-          Data
+          Date
         </Label>
         <Input
           id="date"
@@ -58,7 +58,7 @@ export function AgendaFilters({
 
       <div className="space-y-1">
         <Label htmlFor="professional" className="text-xs">
-          Profissional
+          Provider
         </Label>
         <select
           id="professional"
@@ -66,7 +66,7 @@ export function AgendaFilters({
           onChange={(e) => setParam("professionalId", e.target.value || null)}
           className="h-9 rounded-md border bg-background px-3 text-sm shadow-xs outline-none focus-visible:ring-1 focus-visible:ring-ring"
         >
-          <option value="">Todos</option>
+          <option value="">All</option>
           {professionals.map((p) => (
             <option key={p.id} value={p.id}>
               {p.name}
@@ -76,7 +76,7 @@ export function AgendaFilters({
       </div>
 
       <div className="space-y-1">
-        <span className="block text-xs">Visão</span>
+        <span className="block text-xs">View</span>
         <div className="inline-flex h-9 items-center rounded-md border bg-background p-0.5 text-sm">
           <button
             type="button"
@@ -87,7 +87,7 @@ export function AgendaFilters({
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            Dia
+            Day
           </button>
           <button
             type="button"
@@ -98,7 +98,7 @@ export function AgendaFilters({
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            Semana
+            Week
           </button>
         </div>
       </div>
@@ -111,7 +111,7 @@ export function AgendaFilters({
             router.push("/agenda");
           }}
         >
-          Limpar
+          Clear
         </Button>
       </div>
     </div>

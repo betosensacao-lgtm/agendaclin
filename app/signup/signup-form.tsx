@@ -1,8 +1,8 @@
 /**
- * Form de cadastro de clínica. Client Component porque:
- *   - Faz checagem ao vivo do slug (debounced)
- *   - Renderiza Turnstile widget
- *   - Redireciona pra /onboarding após sucesso
+ * Clinic registration form. Client Component because:
+ *   - Live slug availability check (debounced)
+ *   - Renders Turnstile widget
+ *   - Redirects to /onboarding on success
  */
 "use client";
 
@@ -39,10 +39,10 @@ function slugify(input: string): string {
   return input
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "") // remove acentos
-    .replace(/[^a-z0-9-]/g, "-") // não-alfanum vira hífen
-    .replace(/-+/g, "-") // colapsa hífens repetidos
-    .replace(/^-+|-+$/g, ""); // tira hífen das pontas
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9-]/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-+|-+$/g, "");
 }
 
 export function SignUpForm() {
@@ -52,15 +52,10 @@ export function SignUpForm() {
     INITIAL,
   );
 
-  // Slug controlado pra checagem ao vivo.
   const [slug, setSlug] = useState("");
   const [slugStatus, setSlugStatus] = useState<SlugStatus>({ kind: "idle" });
-
-  // Turnstile
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [turnstileKey, setTurnstileKey] = useState(0);
-
-  // Auto-derivação do slug a partir do nome da clínica (até o usuário editar).
   const [slugTouched, setSlugTouched] = useState(false);
 
   function handleClinicNameChange(name: string) {
@@ -75,7 +70,6 @@ export function SignUpForm() {
     setSlug(slugify(value));
   }
 
-  // Debounce da checagem de slug.
   const checkTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (checkTimerRef.current) clearTimeout(checkTimerRef.current);
@@ -104,7 +98,6 @@ export function SignUpForm() {
     };
   }, [slug]);
 
-  // Redireciona após sucesso.
   useEffect(() => {
     if (state.ok && state.clinicSlug) {
       router.push("/onboarding");
@@ -112,7 +105,6 @@ export function SignUpForm() {
     }
   }, [state.ok, state.clinicSlug, router]);
 
-  // Se o action falhou, reseta o Turnstile pra forçar nova validação.
   useEffect(() => {
     if (state.error || state.fieldErrors) {
       setTurnstileToken(null);
@@ -129,18 +121,17 @@ export function SignUpForm() {
 
   return (
     <form action={formAction} className="space-y-4">
-      {/* Hidden Turnstile token */}
       <input type="hidden" name="turnstileToken" value={turnstileToken ?? ""} />
 
       <div className="space-y-2">
-        <Label htmlFor="clinicName">Nome da clínica</Label>
+        <Label htmlFor="clinicName">Clinic name</Label>
         <Input
           id="clinicName"
           name="clinicName"
           required
           minLength={2}
           maxLength={120}
-          placeholder="Clínica Boa Saúde"
+          placeholder="Good Health Clinic"
           onChange={(e) => handleClinicNameChange(e.target.value)}
           autoFocus
         />
@@ -152,10 +143,10 @@ export function SignUpForm() {
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="slug">URL pública (slug)</Label>
+        <Label htmlFor="slug">Public URL (slug)</Label>
         <div className="flex items-center gap-2">
           <span className="shrink-0 text-sm text-muted-foreground">
-            agendaclin.vercel.app/
+            bookclinic.vercel.app/
           </span>
           <div className="relative flex-1">
             <Input
@@ -166,7 +157,7 @@ export function SignUpForm() {
               maxLength={40}
               value={slug}
               onChange={(e) => handleSlugChange(e.target.value)}
-              placeholder="boa-saude"
+              placeholder="good-health"
               className="pr-9"
             />
             <span className="absolute right-2 top-1/2 -translate-y-1/2">
@@ -185,11 +176,11 @@ export function SignUpForm() {
         {slugStatus.kind === "unavailable" && (
           <p className="text-sm text-destructive">
             {slugStatus.reason === "format" &&
-              "Use 3-40 letras minúsculas, números e hífens"}
+              "Use 3-40 lowercase letters, numbers and hyphens"}
             {slugStatus.reason === "reserved" &&
-              "Este slug é reservado — escolha outro"}
+              "This slug is reserved — please choose another"}
             {slugStatus.reason === "taken" &&
-              "Este slug já está em uso — escolha outro"}
+              "This slug is already taken — please choose another"}
           </p>
         )}
         {state.fieldErrors?.slug && (
@@ -200,14 +191,14 @@ export function SignUpForm() {
       <hr className="my-2" />
 
       <div className="space-y-2">
-        <Label htmlFor="adminName">Seu nome</Label>
+        <Label htmlFor="adminName">Your name</Label>
         <Input
           id="adminName"
           name="adminName"
           required
           minLength={2}
           maxLength={120}
-          placeholder="Maria Silva"
+          placeholder="John Smith"
           autoComplete="name"
         />
         {state.fieldErrors?.adminName && (
@@ -218,13 +209,13 @@ export function SignUpForm() {
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="adminEmail">Seu e-mail</Label>
+        <Label htmlFor="adminEmail">Your email</Label>
         <Input
           id="adminEmail"
           name="adminEmail"
           type="email"
           required
-          placeholder="voce@clinica.com.br"
+          placeholder="you@clinic.com"
           autoComplete="email"
         />
         {state.fieldErrors?.adminEmail && (
@@ -235,7 +226,7 @@ export function SignUpForm() {
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="password">Senha</Label>
+        <Label htmlFor="password">Password</Label>
         <Input
           id="password"
           name="password"
@@ -246,7 +237,7 @@ export function SignUpForm() {
           autoComplete="new-password"
         />
         <p className="text-xs text-muted-foreground">
-          Mínimo 8 caracteres. Use senha forte com letras, números e símbolos.
+          Minimum 8 characters. Use a strong password with letters, numbers and symbols.
         </p>
         {state.fieldErrors?.password && (
           <p className="text-sm text-destructive">
@@ -263,7 +254,7 @@ export function SignUpForm() {
           className="mt-0.5"
         />
         <span>
-          Aceito os termos de uso e a política de privacidade do agendaclin.
+          I accept the terms of service and privacy policy of BookClinic.
         </span>
       </label>
       {state.fieldErrors?.acceptTerms && (
@@ -292,10 +283,10 @@ export function SignUpForm() {
         disabled={pending || !turnstileToken || !slugSubmittable}
       >
         {pending
-          ? "Criando sua conta…"
+          ? "Creating your account..."
           : !turnstileToken
-            ? "Aguardando verificação…"
-            : "Cadastrar clínica"}
+            ? "Verifying..."
+            : "Register clinic"}
       </Button>
     </form>
   );

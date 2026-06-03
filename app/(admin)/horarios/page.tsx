@@ -44,10 +44,10 @@ export default async function HorariosPage({
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Horários</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Availability</h1>
         <p className="text-sm text-muted-foreground">
-          Configure os horários semanais de cada profissional e cadastre
-          bloqueios pontuais (feriados, eventos, almoço variável).
+          Configure the weekly schedule for each provider and add specific
+          time blocks (holidays, events, extended lunch).
         </p>
       </div>
 

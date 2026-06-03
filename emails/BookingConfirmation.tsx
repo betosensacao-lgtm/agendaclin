@@ -1,6 +1,6 @@
 /**
- * Email enviado ao paciente após criar um agendamento.
- * Inclui resumo da consulta + link com cancel_token para cancelar.
+ * Email sent to the patient after a booking is created.
+ * Includes appointment summary + management link (reschedule/cancel).
  */
 import {
   Body,
@@ -21,13 +21,13 @@ export type BookingConfirmationProps = {
   clinicName: string;
   serviceName: string;
   professionalName: string;
-  dateTimeFormatted: string; // ex.: "segunda-feira, 02 de junho às 09:00"
+  dateTimeFormatted: string;
   durationMinutes: number;
-  /** URL da página de gerenciamento (ver/remarcar/cancelar). */
+  /** URL to the management page (view/reschedule/cancel). */
   manageUrl: string;
-  /** URL direta de cancelamento (atalho). */
+  /** Direct cancel URL (shortcut). */
   cancelUrl: string;
-  /** URL direta de remarcação (atalho). */
+  /** Direct reschedule URL (shortcut). */
   rescheduleUrl: string;
 };
 
@@ -44,46 +44,47 @@ export default function BookingConfirmation({
 }: BookingConfirmationProps) {
   const firstName = patientName.split(" ")[0];
   return (
-    <Html lang="pt-BR">
+    <Html lang="en">
       <Head />
       <Preview>
-        Sua consulta em {clinicName} foi confirmada para {dateTimeFormatted}.
+        Your appointment at {clinicName} is confirmed for {dateTimeFormatted}.
       </Preview>
       <Body style={body}>
         <Container style={container}>
-          <Heading style={h1}>Agendamento confirmado ✓</Heading>
-          <Text style={greeting}>Olá, {firstName}!</Text>
+          <Heading style={h1}>Booking confirmed ✓</Heading>
+          <Text style={greeting}>Hi {firstName},</Text>
           <Text style={paragraph}>
-            Sua consulta em <strong>{clinicName}</strong> foi confirmada.
-            Estamos te esperando.
+            Your appointment at <strong>{clinicName}</strong> is confirmed.
+            We&apos;ll see you soon!
           </Text>
 
           <Section style={card}>
-            <Row label="Serviço" value={`${serviceName} (${durationMinutes} min)`} />
-            <Row label="Profissional" value={professionalName} />
-            <Row label="Quando" value={dateTimeFormatted} />
+            <Row label="Service" value={`${serviceName} (${durationMinutes} min)`} />
+            <Row label="Provider" value={professionalName} />
+            <Row label="When" value={dateTimeFormatted} />
           </Section>
 
           <Text style={paragraphSmall}>
-            📎 Anexamos o evento no calendário (.ics) — abra o anexo pra
-            adicionar ao Google Calendar, Apple ou Outlook com 1 toque.
+            📎 We&apos;ve attached a calendar invite (.ics) — open the
+            attachment to add this event to Google Calendar, Apple Calendar or
+            Outlook with one tap.
           </Text>
 
           <Section style={ctaSection}>
             <Text style={paragraphSmall}>
-              Precisa mudar algo? Você pode remarcar ou cancelar sem
-              precisar ligar:
+              Need to make a change? You can reschedule or cancel without
+              calling us:
             </Text>
             <div style={buttonRow}>
               <Button href={rescheduleUrl} style={button}>
-                Remarcar
+                Reschedule
               </Button>
               <Button href={cancelUrl} style={buttonGhost}>
-                Cancelar
+                Cancel
               </Button>
             </div>
             <Text style={fineprint}>
-              Se os botões não funcionarem, abra:
+              If the buttons don&apos;t work, open:
               <br />
               <Link href={manageUrl} style={link}>
                 {manageUrl}
@@ -93,7 +94,7 @@ export default function BookingConfirmation({
 
           <Hr style={hr} />
           <Text style={footer}>
-            Este email foi enviado por agendaclin a pedido de {clinicName}.
+            This email was sent by BookClinic on behalf of {clinicName}.
           </Text>
         </Container>
       </Body>
@@ -111,7 +112,7 @@ function Row({ label, value }: { label: string; value: string }) {
   );
 }
 
-// ---- estilos inline (compat email clients) ----
+// ---- inline styles (email client compatibility) ----
 
 const body: React.CSSProperties = {
   backgroundColor: "#f6f6f6",

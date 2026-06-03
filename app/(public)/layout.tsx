@@ -15,7 +15,7 @@ export default function PublicLayout({
     <div className="flex min-h-screen flex-col bg-[#FAFAFA]">
       <main className="flex-1">{children}</main>
       <footer className="border-t bg-white py-5 text-center text-xs text-muted-foreground">
-        Agendamento online · agendaclin
+        Online Booking · BookClinic
       </footer>
     </div>
   );

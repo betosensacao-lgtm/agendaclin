@@ -1,5 +1,5 @@
 /**
- * Lista de bloqueios pontuais (overrides) + dialog de criar.
+ * Time blocks list + create dialog.
  */
 "use client";
 
@@ -36,18 +36,18 @@ type ProfessionalSummary = { id: string; name: string };
 
 const INITIAL_STATE: OverrideFormState = {};
 
-const TZ = "America/Sao_Paulo";
+const TZ = "UTC";
 
 function formatLocal(iso: string): string {
-  // Mostra como "ddd dd/MM/yyyy HH:mm" no fuso da clínica.
-  return new Date(iso).toLocaleString("pt-BR", {
+  return new Date(iso).toLocaleString("en-US", {
     timeZone: TZ,
     weekday: "short",
-    day: "2-digit",
     month: "2-digit",
+    day: "2-digit",
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
+    hour12: false,
   });
 }
 
@@ -63,12 +63,12 @@ export function OverridesSection({
   return (
     <>
       <div className="flex items-center justify-end">
-        <Button onClick={() => setCreating(true)}>Novo bloqueio</Button>
+        <Button onClick={() => setCreating(true)}>New block</Button>
       </div>
 
       {overrides.length === 0 ? (
         <p className="rounded-md border p-4 text-sm text-muted-foreground">
-          Nenhum bloqueio cadastrado.
+          No time blocks added.
         </p>
       ) : (
         <ul className="divide-y rounded-md border">
@@ -79,7 +79,7 @@ export function OverridesSection({
               professionalName={
                 o.professionalId
                   ? (professionals.find((p) => p.id === o.professionalId)
-                      ?.name ?? "Profissional removido")
+                      ?.name ?? "Removed provider")
                   : null
               }
             />
@@ -107,7 +107,7 @@ function OverrideItem({
   const [pending, startTransition] = useTransition();
 
   function handleDelete() {
-    if (!confirm("Remover este bloqueio?")) return;
+    if (!confirm("Remove this time block?")) return;
     startTransition(async () => {
       await deleteOverrideAction(override.id);
     });
@@ -120,7 +120,7 @@ function OverrideItem({
           {professionalName ? (
             <Badge variant="secondary">{professionalName}</Badge>
           ) : (
-            <Badge variant="outline">Clínica inteira</Badge>
+            <Badge variant="outline">Entire clinic</Badge>
           )}
           {override.reason && (
             <span className="text-muted-foreground">{override.reason}</span>
@@ -136,7 +136,7 @@ function OverrideItem({
         disabled={pending}
         onClick={handleDelete}
       >
-        Remover
+        Remove
       </Button>
     </li>
   );
@@ -165,15 +165,15 @@ function OverrideDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Novo bloqueio</DialogTitle>
+          <DialogTitle>New time block</DialogTitle>
           <DialogDescription>
-            Marque um intervalo em que o profissional (ou a clínica
-            inteira) não está disponível.
+            Block a time interval when the provider (or the entire clinic)
+            is unavailable.
           </DialogDescription>
         </DialogHeader>
         <form action={formAction} className="space-y-4">
           <div className="space-y-2">
-            <Label>Escopo</Label>
+            <Label>Scope</Label>
             <div className="flex gap-4 text-sm">
               <label className="flex items-center gap-2">
                 <input
@@ -183,7 +183,7 @@ function OverrideDialog({
                   checked={scope === "professional"}
                   onChange={() => setScope("professional")}
                 />
-                Um profissional
+                Single provider
               </label>
               <label className="flex items-center gap-2">
                 <input
@@ -193,14 +193,14 @@ function OverrideDialog({
                   checked={scope === "clinic"}
                   onChange={() => setScope("clinic")}
                 />
-                Clínica inteira
+                Entire clinic
               </label>
             </div>
           </div>
 
           {scope === "professional" && (
             <div className="space-y-2">
-              <Label htmlFor="professionalId">Profissional</Label>
+              <Label htmlFor="professionalId">Provider</Label>
               <select
                 id="professionalId"
                 name="professionalId"
@@ -224,7 +224,7 @@ function OverrideDialog({
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="startsAt">Início</Label>
+              <Label htmlFor="startsAt">Start</Label>
               <Input
                 id="startsAt"
                 name="startsAt"
@@ -238,7 +238,7 @@ function OverrideDialog({
               )}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="endsAt">Fim</Label>
+              <Label htmlFor="endsAt">End</Label>
               <Input
                 id="endsAt"
                 name="endsAt"
@@ -254,12 +254,12 @@ function OverrideDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="reason">Motivo (opcional)</Label>
+            <Label htmlFor="reason">Reason (optional)</Label>
             <Input
               id="reason"
               name="reason"
               maxLength={200}
-              placeholder="ex.: Feriado, congresso, almoço estendido"
+              placeholder="e.g. Holiday, conference, extended lunch"
             />
           </div>
 
@@ -276,10 +276,10 @@ function OverrideDialog({
               onClick={() => onOpenChange(false)}
               disabled={pending}
             >
-              Cancelar
+              Cancel
             </Button>
             <Button type="submit" disabled={pending}>
-              {pending ? "Salvando…" : "Criar bloqueio"}
+              {pending ? "Saving..." : "Create block"}
             </Button>
           </DialogFooter>
         </form>

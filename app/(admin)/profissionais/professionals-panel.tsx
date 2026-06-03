@@ -1,7 +1,5 @@
 /**
- * Painel client-side de profissionais: tabela + dialog (criar/editar) +
- * toggle de ativação + criar conta de login. Recebe lista hidratada via
- * prop e revalida via revalidatePath nas Server Actions.
+ * Client-side providers panel: table + dialog (create/edit) + toggle + login.
  */
 "use client";
 
@@ -52,18 +50,18 @@ export function ProfessionalsPanel({
   return (
     <>
       <div className="flex items-center justify-end">
-        <Button onClick={() => setCreating(true)}>Novo profissional</Button>
+        <Button onClick={() => setCreating(true)}>New provider</Button>
       </div>
 
       <div className="rounded-md border">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Nome</TableHead>
-              <TableHead>Serviços</TableHead>
+              <TableHead>Name</TableHead>
+              <TableHead>Services</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Login</TableHead>
-              <TableHead className="text-right">Ações</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -73,7 +71,7 @@ export function ProfessionalsPanel({
                   colSpan={5}
                   className="h-24 text-center text-muted-foreground"
                 >
-                  Nenhum profissional cadastrado.
+                  No providers registered.
                 </TableCell>
               </TableRow>
             ) : (
@@ -83,7 +81,7 @@ export function ProfessionalsPanel({
                   <TableCell>
                     {pro.services.length === 0 ? (
                       <span className="text-muted-foreground">
-                        nenhum vinculado
+                        none assigned
                       </span>
                     ) : (
                       <div className="flex flex-wrap gap-1">
@@ -100,21 +98,21 @@ export function ProfessionalsPanel({
                   </TableCell>
                   <TableCell>
                     {pro.active ? (
-                      <Badge variant="secondary">Ativo</Badge>
+                      <Badge variant="secondary">Active</Badge>
                     ) : (
-                      <Badge variant="outline">Inativo</Badge>
+                      <Badge variant="outline">Inactive</Badge>
                     )}
                   </TableCell>
                   <TableCell>
                     {pro.userId ? (
-                      <Badge variant="secondary">Tem acesso</Badge>
+                      <Badge variant="secondary">Has access</Badge>
                     ) : (
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => setLoginFor(pro)}
                       >
-                        Criar acesso
+                        Create access
                       </Button>
                     )}
                   </TableCell>
@@ -125,7 +123,7 @@ export function ProfessionalsPanel({
                         size="sm"
                         onClick={() => setEditing(pro)}
                       >
-                        Editar
+                        Edit
                       </Button>
                       <Button
                         variant="ghost"
@@ -133,7 +131,7 @@ export function ProfessionalsPanel({
                         disabled={pending && togglingId === pro.id}
                         onClick={() => handleToggle(pro.id, pro.active)}
                       >
-                        {pro.active ? "Desativar" : "Ativar"}
+                        {pro.active ? "Deactivate" : "Activate"}
                       </Button>
                     </div>
                   </TableCell>

@@ -1,7 +1,5 @@
 /**
- * Painel client-side de serviços: tabela + dialog (criar/editar) +
- * toggle de ativação. Recebe a lista hidratada via prop do Server
- * Component e revalida via revalidatePath nas Server Actions.
+ * Client-side services panel: table + dialog (create/edit) + toggle.
  */
 "use client";
 
@@ -44,18 +42,18 @@ export function ServicesPanel({ services }: { services: Service[] }) {
   return (
     <>
       <div className="flex items-center justify-end">
-        <Button onClick={() => setCreating(true)}>Novo serviço</Button>
+        <Button onClick={() => setCreating(true)}>New service</Button>
       </div>
 
       <div className="rounded-md border">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Nome</TableHead>
-              <TableHead>Duração</TableHead>
-              <TableHead>Preço</TableHead>
+              <TableHead>Name</TableHead>
+              <TableHead>Duration</TableHead>
+              <TableHead>Price</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead className="text-right">Ações</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -65,7 +63,7 @@ export function ServicesPanel({ services }: { services: Service[] }) {
                   colSpan={5}
                   className="h-24 text-center text-muted-foreground"
                 >
-                  Nenhum serviço cadastrado.
+                  No services registered.
                 </TableCell>
               </TableRow>
             ) : (
@@ -76,9 +74,9 @@ export function ServicesPanel({ services }: { services: Service[] }) {
                   <TableCell>{formatPriceCents(service.priceCents)}</TableCell>
                   <TableCell>
                     {service.active ? (
-                      <Badge variant="secondary">Ativo</Badge>
+                      <Badge variant="secondary">Active</Badge>
                     ) : (
-                      <Badge variant="outline">Inativo</Badge>
+                      <Badge variant="outline">Inactive</Badge>
                     )}
                   </TableCell>
                   <TableCell className="text-right">
@@ -88,7 +86,7 @@ export function ServicesPanel({ services }: { services: Service[] }) {
                         size="sm"
                         onClick={() => setEditing(service)}
                       >
-                        Editar
+                        Edit
                       </Button>
                       <Button
                         variant="ghost"
@@ -96,7 +94,7 @@ export function ServicesPanel({ services }: { services: Service[] }) {
                         disabled={pendingId && togglingId === service.id}
                         onClick={() => handleToggle(service.id, service.active)}
                       >
-                        {service.active ? "Desativar" : "Ativar"}
+                        {service.active ? "Deactivate" : "Activate"}
                       </Button>
                     </div>
                   </TableCell>

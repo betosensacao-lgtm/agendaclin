@@ -1,6 +1,5 @@
 /**
- * Botões inline para mudar o status de um booking. Usado tanto na /agenda
- * quanto na /consultas. Confirma destrutivas (cancelar) via window.confirm.
+ * Inline booking status action buttons. Used in /agenda and /appointments.
  */
 "use client";
 
@@ -22,7 +21,6 @@ export function BookingActions({
 }) {
   const [pending, startTransition] = useTransition();
 
-  // Booking já finalizado (não-confirmed) não pode mais ser alterado pela UI.
   if (status !== "confirmed") {
     return null;
   }
@@ -44,8 +42,8 @@ export function BookingActions({
         variant="ghost"
         disabled={pending}
         onClick={() => run("attended")}
-        title="Marcar como atendido"
-        aria-label="Marcar como atendido"
+        title="Mark as attended"
+        aria-label="Mark as attended"
       >
         <Check className="size-4" />
       </Button>
@@ -53,9 +51,9 @@ export function BookingActions({
         size="sm"
         variant="ghost"
         disabled={pending}
-        onClick={() => run("no_show", "Marcar como falta (paciente não compareceu)?")}
-        title="Marcar como falta"
-        aria-label="Marcar como falta"
+        onClick={() => run("no_show", "Mark as no-show (patient did not attend)?")}
+        title="Mark as no-show"
+        aria-label="Mark as no-show"
       >
         <Slash className="size-4" />
       </Button>
@@ -63,9 +61,9 @@ export function BookingActions({
         size="sm"
         variant="ghost"
         disabled={pending}
-        onClick={() => run("cancelled", "Cancelar esta consulta?")}
-        title="Cancelar"
-        aria-label="Cancelar"
+        onClick={() => run("cancelled", "Cancel this appointment?")}
+        title="Cancel"
+        aria-label="Cancel"
       >
         <X className="size-4" />
       </Button>
@@ -73,18 +71,15 @@ export function BookingActions({
   );
 }
 
-/**
- * Badge com o status traduzido + cor. Usado em /agenda e /consultas.
- */
 export function StatusBadge({ status }: { status: Status }) {
   const label =
     status === "confirmed"
-      ? "Confirmada"
+      ? "Confirmed"
       : status === "attended"
-        ? "Atendida"
+        ? "Attended"
         : status === "cancelled"
-          ? "Cancelada"
-          : "Falta";
+          ? "Cancelled"
+          : "No-show";
 
   const className =
     status === "confirmed"

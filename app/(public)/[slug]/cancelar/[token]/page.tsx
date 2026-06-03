@@ -1,6 +1,5 @@
 /**
- * Página de cancelamento. Exibe os detalhes da consulta e um botão para
- * confirmar o cancelamento. Se já cancelada, mostra aviso.
+ * Cancellation page. Shows appointment details and a confirm button.
  */
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -13,10 +12,10 @@ import { formatDuration } from "@/lib/format";
 
 import { CancelButton } from "./cancel-button";
 
-const TZ = "America/Sao_Paulo";
+const TZ = "UTC";
 
 function formatDateTime(date: Date): string {
-  return date.toLocaleString("pt-BR", {
+  return date.toLocaleString("en-US", {
     timeZone: TZ,
     weekday: "long",
     day: "numeric",
@@ -42,19 +41,18 @@ export default async function CancelarPage({
 
   if (!clinic || !booking) notFound();
 
-  // Se já cancelado, aviso e link para agendar novamente.
   if (booking.status !== "confirmed") {
     return (
       <div className="mx-auto w-full max-w-2xl space-y-4 px-4 py-8">
         <div className="flex items-center gap-3 text-muted-foreground">
           <AlertTriangle className="size-5 shrink-0" />
           <p className="text-sm">
-            Este agendamento já foi cancelado ou finalizado — não é mais
-            possível cancelá-lo.
+            This booking has already been cancelled or completed — it can no
+            longer be cancelled.
           </p>
         </div>
         <Link href={`/${slug}/agendar`} className={buttonVariants({ variant: "outline" })}>
-          Agendar novamente
+          Book again
         </Link>
       </div>
     );
@@ -63,19 +61,19 @@ export default async function CancelarPage({
   return (
     <div className="mx-auto w-full max-w-2xl space-y-6 px-4 py-8">
       <div>
-        <h1 className="text-xl font-bold">Cancelar agendamento</h1>
+        <h1 className="text-xl font-bold">Cancel booking</h1>
         <p className="text-sm text-muted-foreground">
-          Você está prestes a cancelar a consulta abaixo.
+          You are about to cancel the appointment below.
         </p>
       </div>
 
-      {/* Detalhes da consulta */}
+      {/* Appointment details */}
       <div className="rounded-md border p-4 space-y-3 text-sm">
         <div className="grid grid-cols-[120px_1fr] gap-y-2">
-          <span className="text-muted-foreground">Clínica</span>
+          <span className="text-muted-foreground">Clinic</span>
           <span className="font-medium">{clinic.name}</span>
 
-          <span className="text-muted-foreground">Serviço</span>
+          <span className="text-muted-foreground">Service</span>
           <span>
             {booking.service.name}{" "}
             <span className="text-muted-foreground">
@@ -83,13 +81,13 @@ export default async function CancelarPage({
             </span>
           </span>
 
-          <span className="text-muted-foreground">Profissional</span>
+          <span className="text-muted-foreground">Provider</span>
           <span>{booking.professional.name}</span>
 
-          <span className="text-muted-foreground">Data e hora</span>
+          <span className="text-muted-foreground">Date & time</span>
           <span className="capitalize">{formatDateTime(booking.startsAt)}</span>
 
-          <span className="text-muted-foreground">Paciente</span>
+          <span className="text-muted-foreground">Patient</span>
           <span>{booking.patientName}</span>
         </div>
       </div>
@@ -100,7 +98,7 @@ export default async function CancelarPage({
         href={`/${slug}/confirmado/${token}`}
         className={buttonVariants({ variant: "ghost", size: "sm" })}
       >
-        ← Voltar ao agendamento
+        ← Back to booking
       </Link>
     </div>
   );

@@ -1,6 +1,5 @@
 /**
- * Email enviado à equipe da clínica quando um paciente faz/cancela
- * um agendamento. Mais sucinto que o do paciente.
+ * Email sent to clinic staff when a patient books, cancels or reschedules.
  */
 import {
   Body,
@@ -28,9 +27,9 @@ export type StaffNotificationProps = {
 };
 
 const TITLES: Record<StaffNotificationKind, string> = {
-  new: "Novo agendamento",
-  cancelled: "Agendamento cancelado",
-  rescheduled: "Agendamento remarcado",
+  new: "New booking",
+  cancelled: "Booking cancelled",
+  rescheduled: "Booking rescheduled",
 };
 
 const ICONS: Record<StaffNotificationKind, string> = {
@@ -44,7 +43,7 @@ export default function StaffNotification(props: StaffNotificationProps) {
   const icon = ICONS[props.kind];
 
   return (
-    <Html lang="pt-BR">
+    <Html lang="en">
       <Head />
       <Preview>
         {title}: {props.patientName} · {props.dateTimeFormatted}
@@ -61,15 +60,15 @@ export default function StaffNotification(props: StaffNotificationProps) {
           </Text>
 
           <Section style={card}>
-            <Row label="Paciente" value={props.patientName} />
-            <Row label="Contato" value={`${props.patientEmail} · ${props.patientPhone}`} />
-            <Row label="Serviço" value={props.serviceName} />
-            <Row label="Profissional" value={props.professionalName} />
+            <Row label="Patient" value={props.patientName} />
+            <Row label="Contact" value={`${props.patientEmail} · ${props.patientPhone}`} />
+            <Row label="Service" value={props.serviceName} />
+            <Row label="Provider" value={props.professionalName} />
           </Section>
 
           <Hr style={hr} />
           <Text style={footer}>
-            Notificação automática · agendaclin
+            Automated notification · BookClinic
           </Text>
         </Container>
       </Body>
@@ -86,7 +85,7 @@ function Row({ label, value }: { label: string; value: string }) {
   );
 }
 
-// ---- estilos ----
+// ---- styles ----
 
 const body: React.CSSProperties = {
   backgroundColor: "#f6f6f6",

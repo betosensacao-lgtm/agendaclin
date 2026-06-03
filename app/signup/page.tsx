@@ -1,8 +1,6 @@
 /**
- * Página pública de cadastro de clínicas. Server Component só renderiza
- * o wrapper — toda a lógica vive no SignUpForm (client).
- *
- * Se usuário já está logado, redireciona pra /agenda ou /minha-agenda.
+ * Public clinic registration page. Server Component renders the wrapper
+ * — all logic lives in SignUpForm (client).
  */
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -20,9 +18,9 @@ export default async function SignUpPage() {
   return (
     <div className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-4 py-8">
       <div className="space-y-2">
-        <h1 className="text-2xl font-bold">Cadastre sua clínica</h1>
+        <h1 className="text-2xl font-bold">Register your clinic</h1>
         <p className="text-sm text-muted-foreground">
-          Comece a receber agendamentos online em 2 minutos. Grátis.
+          Start receiving online bookings in 2 minutes. Free.
         </p>
       </div>
 
@@ -31,9 +29,9 @@ export default async function SignUpPage() {
       </div>
 
       <p className="mt-6 text-center text-sm text-muted-foreground">
-        Já tem conta?{" "}
+        Already have an account?{" "}
         <Link href="/login" className="font-medium text-foreground hover:underline">
-          Faça login
+          Sign in
         </Link>
       </p>
     </div>

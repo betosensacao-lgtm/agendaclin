@@ -1,6 +1,5 @@
 /**
- * Form de edição dos dados da clínica. Client Component porque usa
- * useActionState pra mostrar feedback inline (sucesso/erro por campo).
+ * Clinic settings form. Client Component using useActionState for inline feedback.
  */
 "use client";
 
@@ -24,14 +23,14 @@ export function ClinicForm({ clinic }: { clinic: Clinic }) {
 
   return (
     <form action={formAction} className="max-w-2xl space-y-5">
-      {/* Identidade — slug e timezone não editáveis no MVP */}
+      {/* Identity — slug and timezone are read-only in MVP */}
       <fieldset className="grid gap-4 rounded-md border p-4 sm:grid-cols-2">
         <legend className="px-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          Identidade
+          Identity
         </legend>
 
         <div className="space-y-2 sm:col-span-2">
-          <Label htmlFor="name">Nome da clínica</Label>
+          <Label htmlFor="name">Clinic name</Label>
           <Input
             id="name"
             name="name"
@@ -51,28 +50,28 @@ export function ClinicForm({ clinic }: { clinic: Clinic }) {
         </div>
 
         <div className="space-y-2">
-          <Label className="text-xs text-muted-foreground">Fuso horário</Label>
+          <Label className="text-xs text-muted-foreground">Timezone</Label>
           <Input value={clinic.timezone} readOnly className="bg-muted/40" />
         </div>
       </fieldset>
 
-      {/* Contato */}
+      {/* Contact */}
       <fieldset className="space-y-4 rounded-md border p-4">
         <legend className="px-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          Contato
+          Contact
         </legend>
 
         <div className="space-y-2">
-          <Label htmlFor="contactEmail">E-mail de contato</Label>
+          <Label htmlFor="contactEmail">Contact email</Label>
           <Input
             id="contactEmail"
             name="contactEmail"
             type="email"
             defaultValue={clinic.contactEmail ?? ""}
-            placeholder="contato@clinica.com.br"
+            placeholder="contact@clinic.com"
           />
           <p className="text-xs text-muted-foreground">
-            Recebe notificações de novos agendamentos e cancelamentos.
+            Receives notifications for new bookings and cancellations.
           </p>
           {state.fieldErrors?.contactEmail && (
             <p className="text-sm text-destructive">
@@ -82,12 +81,12 @@ export function ClinicForm({ clinic }: { clinic: Clinic }) {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="phone">Telefone / WhatsApp</Label>
+          <Label htmlFor="phone">Phone / WhatsApp</Label>
           <Input
             id="phone"
             name="phone"
             defaultValue={clinic.phone ?? ""}
-            placeholder="(11) 91234-5678"
+            placeholder="+1 (555) 123-4567"
             maxLength={40}
           />
           {state.fieldErrors?.phone && (
@@ -98,12 +97,12 @@ export function ClinicForm({ clinic }: { clinic: Clinic }) {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="address">Endereço</Label>
+          <Label htmlFor="address">Address</Label>
           <textarea
             id="address"
             name="address"
             defaultValue={clinic.address ?? ""}
-            placeholder="Rua, número, bairro, cidade — UF"
+            placeholder="Street, number, city, state"
             rows={3}
             maxLength={300}
             className="flex w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-1 focus-visible:ring-ring"
@@ -116,17 +115,17 @@ export function ClinicForm({ clinic }: { clinic: Clinic }) {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="hoursText">Horário de funcionamento</Label>
+          <Label htmlFor="hoursText">Operating hours</Label>
           <Input
             id="hoursText"
             name="hoursText"
             defaultValue={clinic.hoursText ?? ""}
-            placeholder="Seg-Sex 9h-18h, Sáb 9h-13h"
+            placeholder="Mon-Fri 9am-6pm, Sat 9am-1pm"
             maxLength={200}
           />
           <p className="text-xs text-muted-foreground">
-            Texto livre exibido na landing pública (não afeta a geração de
-            slots — para isso use a tela /horarios).
+            Free text displayed on the public landing page (does not affect
+            slot generation — use the Availability screen for that).
           </p>
           {state.fieldErrors?.hoursText && (
             <p className="text-sm text-destructive">
@@ -136,14 +135,14 @@ export function ClinicForm({ clinic }: { clinic: Clinic }) {
         </div>
       </fieldset>
 
-      {/* Visual */}
+      {/* Appearance */}
       <fieldset className="space-y-4 rounded-md border p-4">
         <legend className="px-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          Visual
+          Appearance
         </legend>
 
         <div className="space-y-2">
-          <Label htmlFor="logoUrl">URL da logo</Label>
+          <Label htmlFor="logoUrl">Logo URL</Label>
           <Input
             id="logoUrl"
             name="logoUrl"
@@ -152,7 +151,7 @@ export function ClinicForm({ clinic }: { clinic: Clinic }) {
             placeholder="https://..."
           />
           <p className="text-xs text-muted-foreground">
-            Cole a URL pública da imagem (PNG/SVG, ideal ≤ 200 KB).
+            Paste the public URL of the image (PNG/SVG, ideally ≤ 200 KB).
           </p>
           {state.fieldErrors?.logoUrl && (
             <p className="text-sm text-destructive">
@@ -172,12 +171,12 @@ export function ClinicForm({ clinic }: { clinic: Clinic }) {
           )}
           {state.ok && (
             <span className="text-muted-foreground">
-              Salvo às {new Date().toLocaleTimeString("pt-BR")}.
+              Saved at {new Date().toLocaleTimeString("en-US")}.
             </span>
           )}
         </div>
         <Button type="submit" disabled={pending}>
-          {pending ? "Salvando…" : "Salvar"}
+          {pending ? "Saving..." : "Save"}
         </Button>
       </div>
     </form>

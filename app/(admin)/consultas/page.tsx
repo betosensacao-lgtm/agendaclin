@@ -1,10 +1,8 @@
 /**
- * Lista paginada de consultas (todos os bookings da clínica).
+ * Paginated appointments list (all clinic bookings).
  *
- * Filtros via URL search params:
+ * Filters via URL search params:
  *   ?page=1&professionalId=...&status=confirmed
- *
- * Ações inline em cada linha (BookingActions): cancelar, atender, no-show.
  */
 import Link from "next/link";
 
@@ -85,10 +83,10 @@ export default async function ConsultasPage({
     <div className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Consultas</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Appointments</h1>
           <p className="text-sm text-muted-foreground">
-            {total} consulta{total !== 1 ? "s" : ""} no total
-            {(status || professionalId) && " (filtros ativos)"}.
+            {total} appointment{total !== 1 ? "s" : ""} total
+            {(status || professionalId) && " (filters active)"}.
           </p>
         </div>
       </div>
@@ -101,7 +99,7 @@ export default async function ConsultasPage({
 
       {rows.length === 0 ? (
         <p className="rounded-md border p-6 text-center text-sm text-muted-foreground">
-          Nenhuma consulta encontrada.
+          No appointments found.
         </p>
       ) : (
         <>
@@ -109,11 +107,11 @@ export default async function ConsultasPage({
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[140px]">Quando</TableHead>
-                  <TableHead>Paciente</TableHead>
-                  <TableHead>Serviço · Profissional</TableHead>
+                  <TableHead className="w-[140px]">When</TableHead>
+                  <TableHead>Patient</TableHead>
+                  <TableHead>Service · Provider</TableHead>
                   <TableHead className="w-[110px]">Status</TableHead>
-                  <TableHead className="w-[140px] text-right">Ações</TableHead>
+                  <TableHead className="w-[140px] text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -149,11 +147,11 @@ export default async function ConsultasPage({
             </Table>
           </div>
 
-          {/* Paginação */}
+          {/* Pagination */}
           {totalPages > 1 && (
             <div className="flex items-center justify-between text-sm">
               <p className="text-muted-foreground">
-                Página {page} de {totalPages}
+                Page {page} of {totalPages}
               </p>
               <div className="flex gap-2">
                 {page > 1 ? (
@@ -161,13 +159,13 @@ export default async function ConsultasPage({
                     href={pageUrl(page - 1)}
                     className={buttonVariants({ variant: "outline", size: "sm" })}
                   >
-                    ← Anterior
+                    ← Previous
                   </Link>
                 ) : (
                   <span
                     className={`${buttonVariants({ variant: "outline", size: "sm" })} pointer-events-none opacity-50`}
                   >
-                    ← Anterior
+                    ← Previous
                   </span>
                 )}
                 {page < totalPages ? (
@@ -175,13 +173,13 @@ export default async function ConsultasPage({
                     href={pageUrl(page + 1)}
                     className={buttonVariants({ variant: "outline", size: "sm" })}
                   >
-                    Próxima →
+                    Next →
                   </Link>
                 ) : (
                   <span
                     className={`${buttonVariants({ variant: "outline", size: "sm" })} pointer-events-none opacity-50`}
                   >
-                    Próxima →
+                    Next →
                   </span>
                 )}
               </div>

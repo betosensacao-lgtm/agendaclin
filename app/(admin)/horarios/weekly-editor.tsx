@@ -1,8 +1,6 @@
 /**
- * Editor da disponibilidade semanal de um profissional. Mostra 7 cards
- * (domingo a sábado), cada um com a lista de faixas do dia. Faixas
- * são editadas inline — start/end via dois <select> (hora/minuto) — e o
- * user salva tudo de uma vez com replace-all no servidor.
+ * Weekly availability editor. Shows 7 day cards (Sunday–Saturday),
+ * each with a list of time slots editable inline.
  */
 "use client";
 
@@ -18,18 +16,18 @@ import {
 
 export type FaixaUI = {
   weekday: number;
-  startTime: string; // "HH:MM" ou "HH:MM:SS"
+  startTime: string; // "HH:MM" or "HH:MM:SS"
   endTime: string;
 };
 
 const DAY_LABELS = [
-  "Domingo",
-  "Segunda",
-  "Terça",
-  "Quarta",
-  "Quinta",
-  "Sexta",
-  "Sábado",
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
 ];
 
 function toHHMM(t: string): string {
@@ -54,11 +52,7 @@ function TimePicker({
   ariaLabel: string;
 }) {
   const [h, m] = toHHMM(value).split(":");
-  // Preserva minuto legado (ex: "37") como opção extra pra não perder dado
-  // de faixas criadas antes do step de 15min.
-  const minuteOptions = MINUTES.includes(m)
-    ? MINUTES
-    : [...MINUTES, m].sort();
+  const minuteOptions = MINUTES.includes(m) ? MINUTES : [...MINUTES, m].sort();
   const selectClass =
     "h-8 rounded-md border bg-background px-1 text-sm tabular-nums";
   return (
@@ -71,7 +65,7 @@ function TimePicker({
         value={h}
         onChange={(e) => onChange(`${e.target.value}:${m}`)}
         className={selectClass}
-        aria-label={`${ariaLabel} — hora`}
+        aria-label={`${ariaLabel} — hour`}
       >
         {HOURS.map((opt) => (
           <option key={opt} value={opt}>
@@ -84,7 +78,7 @@ function TimePicker({
         value={m}
         onChange={(e) => onChange(`${h}:${e.target.value}`)}
         className={selectClass}
-        aria-label={`${ariaLabel} — minuto`}
+        aria-label={`${ariaLabel} — minute`}
       >
         {minuteOptions.map((opt) => (
           <option key={opt} value={opt}>
@@ -105,8 +99,6 @@ export function WeeklyEditor({
   professionalId: string;
   initialFaixas: FaixaUI[];
 }) {
-  // Estado local: agrupado por weekday. Re-hidrata quando o
-  // profissional muda (initialFaixas vem das props que mudam via URL).
   const [byWeekday, setByWeekday] = useState<Record<number, FaixaUI[]>>(() =>
     groupByWeekday(initialFaixas),
   );
@@ -137,11 +129,7 @@ export function WeeklyEditor({
     });
   }
 
-  function updateFaixa(
-    weekday: number,
-    idx: number,
-    patch: Partial<FaixaUI>,
-  ) {
+  function updateFaixa(weekday: number, idx: number, patch: Partial<FaixaUI>) {
     setByWeekday((prev) => {
       const arr = (prev[weekday] ?? []).slice();
       arr[idx] = { ...arr[idx], ...patch };
@@ -149,7 +137,6 @@ export function WeeklyEditor({
     });
   }
 
-  // Faixas serializadas como JSON oculto pro Server Action.
   const allFaixas: FaixaUI[] = Array.from({ length: 7 }, (_, w) =>
     (byWeekday[w] ?? []).map((f) => ({
       weekday: w,
@@ -161,11 +148,7 @@ export function WeeklyEditor({
   return (
     <form action={formAction} className="space-y-4">
       <input type="hidden" name="professionalId" value={professionalId} />
-      <input
-        type="hidden"
-        name="faixas"
-        value={JSON.stringify(allFaixas)}
-      />
+      <input type="hidden" name="faixas" value={JSON.stringify(allFaixas)} />
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {DAY_LABELS.map((label, weekday) => (
@@ -177,15 +160,15 @@ export function WeeklyEditor({
                 variant="ghost"
                 size="sm"
                 onClick={() => addFaixa(weekday)}
-                aria-label={`Adicionar faixa em ${label}`}
+                aria-label={`Add slot on ${label}`}
               >
                 <Plus className="size-4" />
-                Faixa
+                Slot
               </Button>
             </div>
 
             {(byWeekday[weekday] ?? []).length === 0 ? (
-              <p className="text-xs text-muted-foreground">Sem atendimento.</p>
+              <p className="text-xs text-muted-foreground">No availability.</p>
             ) : (
               <div className="space-y-2">
                 {(byWeekday[weekday] ?? []).map((faixa, idx) => (
@@ -195,22 +178,22 @@ export function WeeklyEditor({
                       onChange={(next) =>
                         updateFaixa(weekday, idx, { startTime: next })
                       }
-                      ariaLabel="Início"
+                      ariaLabel="Start"
                     />
-                    <span className="text-muted-foreground text-xs">até</span>
+                    <span className="text-muted-foreground text-xs">to</span>
                     <TimePicker
                       value={faixa.endTime}
                       onChange={(next) =>
                         updateFaixa(weekday, idx, { endTime: next })
                       }
-                      ariaLabel="Fim"
+                      ariaLabel="End"
                     />
                     <Button
                       type="button"
                       variant="ghost"
                       size="icon"
                       onClick={() => removeFaixa(weekday, idx)}
-                      aria-label="Remover faixa"
+                      aria-label="Remove slot"
                     >
                       <X className="size-4" />
                     </Button>
@@ -231,12 +214,12 @@ export function WeeklyEditor({
           )}
           {state.ok && (
             <span className="text-muted-foreground">
-              Salvo às {new Date().toLocaleTimeString("pt-BR")}.
+              Saved at {new Date().toLocaleTimeString("en-US")}.
             </span>
           )}
         </div>
         <Button type="submit" disabled={pending}>
-          {pending ? "Salvando…" : "Salvar horários"}
+          {pending ? "Saving..." : "Save schedule"}
         </Button>
       </div>
     </form>

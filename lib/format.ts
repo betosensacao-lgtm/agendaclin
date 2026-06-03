@@ -1,12 +1,12 @@
 /**
- * Helpers de formatação para exibição. Todas pt-BR.
+ * Formatting helpers for display. All en-US / USD.
  */
 
 export function formatPriceCents(cents: number | null | undefined): string {
   if (cents === null || cents === undefined) return "—";
-  return (cents / 100).toLocaleString("pt-BR", {
+  return (cents / 100).toLocaleString("en-US", {
     style: "currency",
-    currency: "BRL",
+    currency: "USD",
   });
 }
 
@@ -18,7 +18,7 @@ export function formatDuration(minutes: number): string {
   return `${h}h ${m}min`;
 }
 
-/** Aceita "120" / "120.50" / "120,50" e devolve em centavos, ou null. */
+/** Accepts "120" / "120.50" and returns cents, or null. */
 export function priceStringToCents(value: string | undefined | null): number | null {
   if (!value) return null;
   const normalized = value.replace(/\s+/g, "").replace(",", ".");
@@ -28,5 +28,5 @@ export function priceStringToCents(value: string | undefined | null): number | n
 
 export function centsToPriceString(cents: number | null | undefined): string {
   if (cents === null || cents === undefined) return "";
-  return (cents / 100).toFixed(2).replace(".", ",");
+  return (cents / 100).toFixed(2);
 }

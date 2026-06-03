@@ -19,7 +19,7 @@ export function CancelButton({
   const [error, setError] = useState<string | null>(null);
 
   async function handleCancel() {
-    if (!confirm("Tem certeza que deseja cancelar este agendamento?")) return;
+    if (!confirm("Are you sure you want to cancel this booking?")) return;
 
     setLoading(true);
     setError(null);
@@ -44,7 +44,7 @@ export function CancelButton({
         disabled={loading}
         className="w-full sm:w-auto"
       >
-        {loading ? "Cancelando…" : "Cancelar agendamento"}
+        {loading ? "Cancelling..." : "Cancel booking"}
       </Button>
       {error && (
         <p className="text-sm text-destructive" role="alert">

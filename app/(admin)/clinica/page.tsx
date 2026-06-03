@@ -17,9 +17,9 @@ export default async function ClinicaPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Clínica</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Clinic settings</h1>
         <p className="text-sm text-muted-foreground">
-          Dados exibidos na sua página pública (
+          Data displayed on your public page (
           <a
             href={`/${clinic.slug}`}
             target="_blank"

@@ -1,6 +1,5 @@
 /**
- * Painel principal de Horários: composto pelo seletor de profissional,
- * editor de disponibilidade semanal (7 cards) e seção de bloqueios.
+ * Availability panel: provider selector + weekly editor + time blocks.
  */
 "use client";
 
@@ -34,8 +33,7 @@ export function HorariosPanel({
   if (professionals.length === 0) {
     return (
       <div className="rounded-md border p-6 text-sm text-muted-foreground">
-        Nenhum profissional ativo. Cadastre profissionais antes de
-        configurar horários.
+        No active providers. Add providers before configuring availability.
       </div>
     );
   }
@@ -45,7 +43,7 @@ export function HorariosPanel({
       <section className="space-y-3">
         <div className="flex items-center gap-3">
           <label htmlFor="prof-select" className="text-sm font-medium">
-            Profissional
+            Provider
           </label>
           <select
             id="prof-select"
@@ -72,10 +70,10 @@ export function HorariosPanel({
       <section className="space-y-3">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-medium">Bloqueios pontuais</h2>
+            <h2 className="text-lg font-medium">Time blocks</h2>
             <p className="text-sm text-muted-foreground">
-              Feriados, eventos e exceções específicas. Aplicam-se a um
-              profissional ou à clínica inteira.
+              Holidays, events and specific exceptions. Apply to a single
+              provider or the entire clinic.
             </p>
           </div>
         </div>

@@ -83,10 +83,10 @@ export default async function MinhaAgendaPage({
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Minha agenda</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">My Schedule</h1>
         <p className="text-sm text-muted-foreground">
-          {pro.name} · {activeCount} consulta{activeCount !== 1 ? "s" : ""}{" "}
-          {view === "week" ? "nesta semana" : "neste dia"}.
+          {pro.name} · {activeCount} appointment{activeCount !== 1 ? "s" : ""}{" "}
+          {view === "week" ? "this week" : "today"}.
         </p>
       </div>
 
@@ -94,7 +94,7 @@ export default async function MinhaAgendaPage({
 
       {bookings.length === 0 ? (
         <p className="rounded-md border p-6 text-center text-sm text-muted-foreground">
-          Nenhuma consulta neste período.
+          No appointments in this period.
         </p>
       ) : (
         <div className="space-y-6">
@@ -113,7 +113,7 @@ export default async function MinhaAgendaPage({
 
                 {dayBookings.length === 0 ? (
                   <p className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">
-                    Nenhuma consulta.
+                    No appointments.
                   </p>
                 ) : (
                   <ul className="divide-y rounded-md border">

@@ -1,9 +1,6 @@
 /**
- * Wizard de agendamento público (client component).
- * 4 steps: serviço → profissional → data/slot → dados do paciente.
- *
- * Estado mantido localmente; slots são buscados via Server Action quando
- * o usuário troca de data ou avança para o step 3.
+ * Public booking wizard (client component).
+ * 4 steps: service → provider → date/slot → patient details.
  */
 "use client";
 
@@ -23,7 +20,7 @@ import {
   type SlotResult,
 } from "./actions";
 
-// ---- Tipos ----
+// ---- Types ----
 
 type Service = {
   id: string;
@@ -37,16 +34,16 @@ type Professional = { id: string; name: string };
 type WizardStep = 1 | 2 | 3 | 4;
 
 const STEP_LABELS: Record<WizardStep, string> = {
-  1: "Serviço",
-  2: "Profissional",
-  3: "Horário",
-  4: "Seus dados",
+  1: "Service",
+  2: "Provider",
+  3: "Time Slot",
+  4: "Your Details",
 };
 
 // ---- Helpers ----
 
 function formatSlotTime(isoUtc: string, timezone: string): string {
-  return new Date(isoUtc).toLocaleTimeString("pt-BR", {
+  return new Date(isoUtc).toLocaleTimeString("en-US", {
     timeZone: timezone,
     hour: "2-digit",
     minute: "2-digit",
@@ -56,7 +53,7 @@ function formatSlotTime(isoUtc: string, timezone: string): string {
 
 function formatDateLabel(ymd: string): string {
   const [y, m, d] = ymd.split("-").map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString("pt-BR", {
+  return new Date(y, m - 1, d).toLocaleDateString("en-US", {
     weekday: "long",
     day: "numeric",
     month: "long",
@@ -64,7 +61,6 @@ function formatDateLabel(ymd: string): string {
 }
 
 function todayYMD(): string {
-  // en-CA retorna YYYY-MM-DD no fuso local do browser.
   return new Date().toLocaleDateString("en-CA");
 }
 
@@ -74,7 +70,7 @@ function maxDateYMD(): string {
   return d.toLocaleDateString("en-CA");
 }
 
-// ---- Sub-componentes ----
+// ---- Sub-components ----
 
 function StepIndicator({
   current,
@@ -97,13 +93,13 @@ function StepIndicator({
         ))}
       </div>
       <p className="text-xs text-muted-foreground">
-        Passo {current} de {total} — {STEP_LABELS[current]}
+        Step {current} of {total} — {STEP_LABELS[current]}
       </p>
     </div>
   );
 }
 
-// ---- Wizard principal ----
+// ---- Main wizard ----
 
 export function BookingWizard({
   clinic,
@@ -121,19 +117,16 @@ export function BookingWizard({
 }) {
   const router = useRouter();
 
-  // Wizard state
   const [step, setStep] = useState<WizardStep>(1);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [selectedProfessional, setSelectedProfessional] =
     useState<Professional | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<SlotResult | null>(null);
 
-  // Step 3: date + slots
   const [selectedDate, setSelectedDate] = useState(todayYMD);
   const [slots, setSlots] = useState<SlotResult[]>([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
 
-  // Step 4: patient form
   const [patientName, setPatientName] = useState("");
   const [patientPhone, setPatientPhone] = useState("");
   const [patientEmail, setPatientEmail] = useState("");
@@ -142,7 +135,6 @@ export function BookingWizard({
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  // Carrega slots quando entra no step 3 ou muda de data.
   useEffect(() => {
     if (step !== 3 || !selectedProfessional || !selectedService) return;
 
@@ -162,7 +154,6 @@ export function BookingWizard({
       .finally(() => setSlotsLoading(false));
   }, [step, selectedDate, selectedProfessional, selectedService, clinic]);
 
-  // Handlers de seleção
   function handleSelectService(service: Service) {
     setSelectedService(service);
     setSelectedProfessional(null);
@@ -170,7 +161,6 @@ export function BookingWizard({
 
     const pros = professionalsByService[service.id] ?? [];
     if (pros.length === 1) {
-      // Só um profissional → pula o step de seleção.
       setSelectedProfessional(pros[0]);
       setStep(3);
     } else {
@@ -190,29 +180,19 @@ export function BookingWizard({
   }
 
   function handleBack() {
-    if (step === 4) {
-      setStep(3);
-      return;
-    }
+    if (step === 4) { setStep(3); return; }
     if (step === 3) {
-      const pros =
-        selectedService ? (professionalsByService[selectedService.id] ?? []) : [];
-      // Se pulamos o step 2 (1 profissional), volta pro step 1.
+      const pros = selectedService ? (professionalsByService[selectedService.id] ?? []) : [];
       setStep(pros.length === 1 ? 1 : 2);
       return;
     }
-    if (step === 2) {
-      setStep(1);
-      return;
-    }
+    if (step === 2) { setStep(1); return; }
   }
 
-  // Stable callback para o Turnstile (evita remount desnecessário).
   const handleTurnstileVerify = useCallback((token: string) => {
     setTurnstileToken(token);
   }, []);
 
-  // Submissão
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!selectedService || !selectedProfessional || !selectedSlot || !turnstileToken)
@@ -239,7 +219,7 @@ export function BookingWizard({
 
     setSubmitError(result.error);
     setTurnstileToken(null);
-    setTurnstileKey((k) => k + 1); // remonta o widget pra nova verificação
+    setTurnstileKey((k) => k + 1);
     setSubmitting(false);
   }
 
@@ -250,13 +230,13 @@ export function BookingWizard({
     <div className="space-y-6">
       <StepIndicator current={step} total={4} />
 
-      {/* STEP 1 — Serviço */}
+      {/* STEP 1 — Service */}
       {step === 1 && (
         <div className="space-y-4">
-          <h2 className="font-semibold">Escolha o serviço</h2>
+          <h2 className="font-semibold">Choose a service</h2>
           {services.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              Nenhum serviço disponível no momento.
+              No services available at the moment.
             </p>
           ) : (
             <div className="grid gap-3">
@@ -281,7 +261,7 @@ export function BookingWizard({
         </div>
       )}
 
-      {/* STEP 2 — Profissional */}
+      {/* STEP 2 — Provider */}
       {step === 2 && (
         <div className="space-y-4">
           <div className="flex items-center gap-3">
@@ -290,14 +270,14 @@ export function BookingWizard({
               onClick={handleBack}
               className="text-sm text-muted-foreground hover:text-foreground"
             >
-              ← Voltar
+              ← Back
             </button>
-            <h2 className="font-semibold">Escolha o profissional</h2>
+            <h2 className="font-semibold">Choose a provider</h2>
           </div>
 
           {professionals.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              Nenhum profissional disponível para este serviço.
+              No providers available for this service.
             </p>
           ) : (
             <div className="grid gap-3">
@@ -316,7 +296,7 @@ export function BookingWizard({
         </div>
       )}
 
-      {/* STEP 3 — Data e horário */}
+      {/* STEP 3 — Date & time */}
       {step === 3 && (
         <div className="space-y-4">
           <div className="flex items-center gap-3">
@@ -325,13 +305,13 @@ export function BookingWizard({
               onClick={handleBack}
               className="text-sm text-muted-foreground hover:text-foreground"
             >
-              ← Voltar
+              ← Back
             </button>
-            <h2 className="font-semibold">Escolha o horário</h2>
+            <h2 className="font-semibold">Choose a time</h2>
           </div>
 
           <div className="space-y-1">
-            <Label htmlFor="date">Data</Label>
+            <Label htmlFor="date">Date</Label>
             <Input
               id="date"
               type="date"
@@ -351,17 +331,16 @@ export function BookingWizard({
           {slotsLoading ? (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-              Buscando horários…
+              Loading available times...
             </div>
           ) : slots.length === 0 ? (
             <p className="rounded-md border p-4 text-center text-sm text-muted-foreground">
-              Nenhum horário disponível neste dia. Tente outra data.
+              No available times on this day. Please try another date.
             </p>
           ) : (
             <div>
               <p className="mb-2 text-sm text-muted-foreground">
-                {slots.length} horário{slots.length !== 1 ? "s" : ""} disponível
-                {slots.length !== 1 ? "s" : ""}
+                {slots.length} time slot{slots.length !== 1 ? "s" : ""} available
               </p>
               <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
                 {slots.map((slot) => (
@@ -380,7 +359,7 @@ export function BookingWizard({
         </div>
       )}
 
-      {/* STEP 4 — Dados do paciente */}
+      {/* STEP 4 — Patient details */}
       {step === 4 && selectedSlot && selectedService && selectedProfessional && (
         <div className="space-y-5">
           <div className="flex items-center gap-3">
@@ -389,20 +368,20 @@ export function BookingWizard({
               onClick={handleBack}
               className="text-sm text-muted-foreground hover:text-foreground"
             >
-              ← Voltar
+              ← Back
             </button>
-            <h2 className="font-semibold">Seus dados</h2>
+            <h2 className="font-semibold">Your details</h2>
           </div>
 
-          {/* Resumo da consulta */}
+          {/* Booking summary */}
           <div className="rounded-md border bg-muted/40 p-4 text-sm space-y-1">
             <p>
               <span className="font-medium">{selectedService.name}</span>
-              {" com "}
+              {" with "}
               <span className="font-medium">{selectedProfessional.name}</span>
             </p>
             <p className="text-muted-foreground">
-              {formatDateLabel(selectedDate)} às{" "}
+              {formatDateLabel(selectedDate)} at{" "}
               {formatSlotTime(selectedSlot.startsAt, clinic.timezone)}
               {" "}({formatDuration(selectedService.durationMinutes)})
             </p>
@@ -410,7 +389,7 @@ export function BookingWizard({
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="patientName">Nome completo *</Label>
+              <Label htmlFor="patientName">Full name *</Label>
               <Input
                 id="patientName"
                 value={patientName}
@@ -418,13 +397,13 @@ export function BookingWizard({
                 required
                 minLength={2}
                 maxLength={100}
-                placeholder="Seu nome"
+                placeholder="Your name"
                 autoComplete="name"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="patientPhone">Telefone / WhatsApp *</Label>
+              <Label htmlFor="patientPhone">Phone / WhatsApp *</Label>
               <Input
                 id="patientPhone"
                 type="tel"
@@ -433,25 +412,24 @@ export function BookingWizard({
                 required
                 minLength={8}
                 maxLength={20}
-                placeholder="(11) 91234-5678"
+                placeholder="+1 (555) 123-4567"
                 autoComplete="tel"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="patientEmail">E-mail *</Label>
+              <Label htmlFor="patientEmail">Email *</Label>
               <Input
                 id="patientEmail"
                 type="email"
                 value={patientEmail}
                 onChange={(e) => setPatientEmail(e.target.value)}
                 required
-                placeholder="seu@email.com"
+                placeholder="you@email.com"
                 autoComplete="email"
               />
             </div>
 
-            {/* Turnstile — renderiza apenas quando os dados estão preenchidos */}
             <div>
               <TurnstileWidget
                 key={turnstileKey}
@@ -472,10 +450,10 @@ export function BookingWizard({
               disabled={submitting || !turnstileToken}
             >
               {submitting
-                ? "Confirmando…"
+                ? "Confirming..."
                 : !turnstileToken
-                  ? "Aguardando verificação…"
-                  : "Confirmar agendamento"}
+                  ? "Verifying..."
+                  : "Confirm booking"}
             </Button>
           </form>
         </div>
