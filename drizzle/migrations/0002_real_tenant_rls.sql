@@ -66,6 +66,40 @@ TO app_cron;--> statement-breakpoint
 GRANT SELECT, UPDATE (whatsapp_reminder_sent_at) ON public.bookings TO app_cron;--> statement-breakpoint
 
 -- ---------------------------------------------------------------------
+-- 1b. Remove o conjunto de policies aplicado direto no banco em
+--     2026-06-12/06-15 (migrations rls_policies_all_tables /
+--     fix_rls_bookings_public_insert — nunca commitadas no git, achadas
+--     só ao inspecionar o banco real antes de aplicar esta migration).
+--     Eram baseadas em auth.uid() (via request.jwt.claims) e, embora
+--     bem desenhadas, sofriam do MESMO bug: a role postgres com
+--     BYPASSRLS=true nunca deixava a Postgres avaliar policy nenhuma.
+--     Substituídas pelo mecanismo desta migration (current_setting
+--     'app.clinic_id') para não deixar dois sistemas de RLS
+--     sobrepostos na mesma tabela.
+-- ---------------------------------------------------------------------
+DROP POLICY IF EXISTS "availability_overrides: admin manages" ON public.availability_overrides;--> statement-breakpoint
+DROP POLICY IF EXISTS "availability_overrides: public read" ON public.availability_overrides;--> statement-breakpoint
+DROP POLICY IF EXISTS "bookings: admin delete" ON public.bookings;--> statement-breakpoint
+DROP POLICY IF EXISTS "bookings: admin reads" ON public.bookings;--> statement-breakpoint
+DROP POLICY IF EXISTS "bookings: admin update" ON public.bookings;--> statement-breakpoint
+DROP POLICY IF EXISTS "bookings: professional reads own" ON public.bookings;--> statement-breakpoint
+DROP POLICY IF EXISTS "bookings: public insert" ON public.bookings;--> statement-breakpoint
+DROP POLICY IF EXISTS "clinics: admin update" ON public.clinics;--> statement-breakpoint
+DROP POLICY IF EXISTS "clinics: public read" ON public.clinics;--> statement-breakpoint
+DROP POLICY IF EXISTS "professional_services: admin manages" ON public.professional_services;--> statement-breakpoint
+DROP POLICY IF EXISTS "professional_services: public read" ON public.professional_services;--> statement-breakpoint
+DROP POLICY IF EXISTS "professionals: admin manages" ON public.professionals;--> statement-breakpoint
+DROP POLICY IF EXISTS "professionals: public read" ON public.professionals;--> statement-breakpoint
+DROP POLICY IF EXISTS "professionals: read own" ON public.professionals;--> statement-breakpoint
+DROP POLICY IF EXISTS "services: admin manages" ON public.services;--> statement-breakpoint
+DROP POLICY IF EXISTS "services: public read" ON public.services;--> statement-breakpoint
+DROP POLICY IF EXISTS "users: insert self" ON public.users;--> statement-breakpoint
+DROP POLICY IF EXISTS "users: read own" ON public.users;--> statement-breakpoint
+DROP POLICY IF EXISTS "users: update own" ON public.users;--> statement-breakpoint
+DROP POLICY IF EXISTS "weekly_availability: admin manages" ON public.weekly_availability;--> statement-breakpoint
+DROP POLICY IF EXISTS "weekly_availability: public read" ON public.weekly_availability;--> statement-breakpoint
+
+-- ---------------------------------------------------------------------
 -- 2. clinics — diretório público (a landing /[slug] precisa ler nome,
 --    horários, serviços etc. antes de qualquer login existir), mas
 --    escrita só dentro do próprio tenant. INSERT é o caso especial do

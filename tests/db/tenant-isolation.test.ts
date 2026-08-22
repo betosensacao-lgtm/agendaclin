@@ -42,9 +42,14 @@ describe.skipIf(!TEST_DATABASE_URL)("RLS real de tenant (app_runtime)", () => {
   let bookingA: string;
   let bookingB: string;
 
+  // is_local=false (sessão, não transação) porque este helper roda fora de
+  // uma transação explícita — a conexão de teste é única (max: 1) e
+  // dedicada, então persistir no nível de sessão é seguro aqui. Em
+  // produção (lib/db/tenant.ts) o mecanismo real usa is_local=true dentro
+  // de uma transação por request — isso é só o setup deste teste.
   async function setClinicContext(clinicId: string | null) {
     await db.execute(
-      sql`SELECT set_config('app.clinic_id', ${clinicId}, true)`,
+      sql`SELECT set_config('app.clinic_id', ${clinicId}, false)`,
     );
   }
 
@@ -162,12 +167,24 @@ describe.skipIf(!TEST_DATABASE_URL)("RLS real de tenant (app_runtime)", () => {
   });
 
   it("sem app.clinic_id setado, nenhuma clínica é legível", async () => {
-    await setClinicContext(null);
-    const rows = await db
-      .select({ id: bookings.id })
-      .from(bookings)
-      .where(sql`id IN (${bookingA}::uuid, ${bookingB}::uuid)`);
-    expect(rows).toHaveLength(0);
+    // Conexão nova e dedicada — a compartilhada pelo resto do arquivo já
+    // teve app.clinic_id setado em nível de sessão (set_config(...,
+    // false) no helper acima), então "resetar" nela não reproduz um
+    // contexto genuinamente virgem (current_setting volta pra '', não
+    // NULL). Uma transação de request real (withTenant) nunca sofre
+    // disso — cada uma é uma transação nova onde SET LOCAL nunca tocou
+    // a variável até ser explicitamente setada.
+    const freshClient = postgres(TEST_DATABASE_URL!, { max: 1 });
+    const freshDb = drizzle(freshClient);
+    try {
+      const rows = await freshDb
+        .select({ id: bookings.id })
+        .from(bookings)
+        .where(sql`id IN (${bookingA}::uuid, ${bookingB}::uuid)`);
+      expect(rows).toHaveLength(0);
+    } finally {
+      await freshClient.end({ timeout: 5 });
+    }
   });
 
   it("clinics continua legível publicamente (landing pública por slug)", async () => {
