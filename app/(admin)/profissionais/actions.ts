@@ -19,7 +19,7 @@ import { z } from "zod";
 
 import { createSupabaseAdminClient } from "@/lib/auth/admin";
 import { requireRole } from "@/lib/auth/guards";
-import { db } from "@/lib/db";
+import { withTenant } from "@/lib/db/tenant";
 import {
   createProfessional,
   getProfessionalById,
@@ -76,47 +76,55 @@ export async function saveProfessionalAction(
     return { fieldErrors };
   }
 
-  // Defesa: garante que todos os service_ids pertencem à clínica do user.
-  if (parsed.data.serviceIds.length > 0) {
-    const owned = await db
-      .select({ id: services.id })
-      .from(services)
-      .where(
-        and(
-          eq(services.clinicId, user.clinicId),
-          inArray(services.id, parsed.data.serviceIds),
-        ),
-      );
+  try {
+    const result = await withTenant(user.clinicId, async (tx) => {
+      // Defesa: garante que todos os service_ids pertencem à clínica do user.
+      if (parsed.data.serviceIds.length > 0) {
+        const owned = await tx
+          .select({ id: services.id })
+          .from(services)
+          .where(
+            and(
+              eq(services.clinicId, user.clinicId),
+              inArray(services.id, parsed.data.serviceIds),
+            ),
+          );
 
-    if (owned.length !== parsed.data.serviceIds.length) {
+        if (owned.length !== parsed.data.serviceIds.length) {
+          return "invalid_services" as const;
+        }
+      }
+
+      let professionalId: string;
+
+      if (parsed.data.id) {
+        const updated = await updateProfessional(tx, parsed.data.id, user.clinicId, {
+          name: parsed.data.name,
+        });
+        if (!updated) {
+          return "not_found" as const;
+        }
+        professionalId = updated.id;
+      } else {
+        const created = await createProfessional(tx, {
+          clinicId: user.clinicId,
+          name: parsed.data.name,
+        });
+        professionalId = created.id;
+      }
+
+      await syncProfessionalServices(tx, professionalId, parsed.data.serviceIds);
+      return "ok" as const;
+    });
+
+    if (result === "invalid_services") {
       return {
-        fieldErrors: {
-          serviceIds: "Algum serviço selecionado é inválido",
-        },
+        fieldErrors: { serviceIds: "Algum serviço selecionado é inválido" },
       };
     }
-  }
-
-  try {
-    let professionalId: string;
-
-    if (parsed.data.id) {
-      const updated = await updateProfessional(parsed.data.id, user.clinicId, {
-        name: parsed.data.name,
-      });
-      if (!updated) {
-        return { error: "Profissional não encontrado" };
-      }
-      professionalId = updated.id;
-    } else {
-      const created = await createProfessional({
-        clinicId: user.clinicId,
-        name: parsed.data.name,
-      });
-      professionalId = created.id;
+    if (result === "not_found") {
+      return { error: "Profissional não encontrado" };
     }
-
-    await syncProfessionalServices(professionalId, parsed.data.serviceIds);
   } catch (err) {
     console.error("[saveProfessionalAction]", err);
     return { error: "Não foi possível salvar. Tente novamente." };
@@ -131,7 +139,9 @@ export async function toggleProfessionalActiveAction(
   active: boolean,
 ): Promise<void> {
   const user = await requireRole("admin");
-  await updateProfessional(id, user.clinicId, { active });
+  await withTenant(user.clinicId, (tx) =>
+    updateProfessional(tx, id, user.clinicId, { active }),
+  );
   revalidatePath("/profissionais");
 }
 
@@ -168,7 +178,9 @@ export async function createProfessionalLoginAction(input: {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Dados inválidos" };
   }
 
-  const pro = await getProfessionalById(parsed.data.professionalId, admin.clinicId);
+  const pro = await withTenant(admin.clinicId, (tx) =>
+    getProfessionalById(tx, parsed.data.professionalId, admin.clinicId),
+  );
   if (!pro) {
     return { ok: false, error: "Profissional não encontrado" };
   }
@@ -212,9 +224,10 @@ export async function createProfessionalLoginAction(input: {
 
   const authUserId = created.user.id;
 
-  // Insere row em public.users + vincula ao professional, em transação.
+  // Insere row em public.users + vincula ao professional, em transação
+  // tenant-scoped (não é bootstrap — a clínica já existe).
   try {
-    await db.transaction(async (tx) => {
+    await withTenant(admin.clinicId, async (tx) => {
       await tx.insert(users).values({
         id: authUserId,
         clinicId: admin.clinicId,

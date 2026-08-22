@@ -33,6 +33,7 @@ import { notFound } from "next/navigation";
 
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
+import { withTenant } from "@/lib/db/tenant";
 import { getPublicServices, getClinicBySlug } from "@/lib/db/queries/clinics";
 import { formatDuration, formatPriceCents } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -52,7 +53,9 @@ export default async function ClinicLandingPage({
   const clinic = await getClinicBySlug(slug);
   if (!clinic) notFound();
 
-  const services = await getPublicServices(clinic.id);
+  const services = await withTenant(clinic.id, (tx) =>
+    getPublicServices(tx, clinic.id),
+  );
 
   const hasContactInfo =
     Boolean(clinic.phone) ||

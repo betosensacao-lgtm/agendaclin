@@ -11,7 +11,7 @@ import { after } from "next/server";
 import { z } from "zod";
 
 import { generateSlots } from "@/lib/booking/slots";
-import { db } from "@/lib/db";
+import { withTenant } from "@/lib/db/tenant";
 import { listOverridesAffectingProfessional } from "@/lib/db/queries/availability";
 import {
   getBookingByToken,
@@ -40,9 +40,6 @@ export async function getSlotsForRescheduleAction(input: {
   const clinic = await getClinicBySlug(input.clinicSlug);
   if (!clinic) return [];
 
-  const booking = await getBookingByToken(input.cancelToken);
-  if (!booking || booking.status !== "confirmed") return [];
-
   // Próximo dia (exclusivo).
   const nextDay = (() => {
     const d = new Date(`${input.dateLocal}T00:00:00Z`);
@@ -50,21 +47,28 @@ export async function getSlotsForRescheduleAction(input: {
     return d.toISOString().slice(0, 10);
   })();
 
-  const [weeklyAvail, overrides, otherBookings] = await Promise.all([
-    db
-      .select()
-      .from(weeklyAvailability)
-      .where(eq(weeklyAvailability.professionalId, booking.professional.id)),
-    listOverridesAffectingProfessional(
-      booking.professional.id,
-      clinic.id,
-    ),
-    getConfirmedBookingsInRange(
-      booking.professional.id,
-      new Date(`${input.dateLocal}T00:00:00Z`),
-      new Date(`${nextDay}T06:00:00Z`),
-    ),
-  ]);
+  const result = await withTenant(clinic.id, async (tx) => {
+    const booking = await getBookingByToken(tx, input.cancelToken);
+    if (!booking || booking.status !== "confirmed") return null;
+
+    const [weeklyAvail, overrides, otherBookings] = await Promise.all([
+      tx
+        .select()
+        .from(weeklyAvailability)
+        .where(eq(weeklyAvailability.professionalId, booking.professional.id)),
+      listOverridesAffectingProfessional(tx, booking.professional.id, clinic.id),
+      getConfirmedBookingsInRange(
+        tx,
+        booking.professional.id,
+        new Date(`${input.dateLocal}T00:00:00Z`),
+        new Date(`${nextDay}T06:00:00Z`),
+      ),
+    ]);
+
+    return { booking, weeklyAvail, overrides, otherBookings };
+  });
+  if (!result) return [];
+  const { booking, weeklyAvail, overrides, otherBookings } = result;
 
   // IMPORTANTE: removemos o próprio booking da lista de ocupados — senão
   // o próprio slot atual ficaria "ocupado por mim mesmo" no grid.
@@ -128,38 +132,45 @@ export async function rescheduleBookingAction(input: {
   const clinic = await getClinicBySlug(data.clinicSlug);
   if (!clinic) return { ok: false, error: "Clínica não encontrada." };
 
-  const booking = await getBookingByToken(data.cancelToken);
-  if (!booking) return { ok: false, error: "Agendamento não encontrado." };
-  if (booking.status !== "confirmed") {
-    return {
-      ok: false,
-      error: "Este agendamento não pode ser remarcado (já cancelado/finalizado).",
-    };
-  }
-
-  const newStartsAt = new Date(data.newStartsAt);
-  const newEndsAt = new Date(
-    newStartsAt.getTime() + booking.service.durationMinutes * 60_000,
-  );
-
-  // Mesmo slot? Sem trabalho — retorna ok pra UX limpa.
-  // Tolerância de 1s pra cobrir drift de millis (Postgres timestamptz
-  // tem precisão microsegundo; ISO roundtrip pode perder dígitos).
-  const driftMs = Math.abs(
-    newStartsAt.getTime() - booking.startsAt.getTime(),
-  );
-  if (driftMs < 1000) {
-    return { ok: true };
-  }
-
   try {
-    const updated = await rescheduleBookingByToken({
-      cancelToken: data.cancelToken,
-      clinicId: clinic.id,
-      newStartsAt,
-      newEndsAt,
+    const outcome = await withTenant(clinic.id, async (tx) => {
+      const booking = await getBookingByToken(tx, data.cancelToken);
+      if (!booking) return "not_found" as const;
+      if (booking.status !== "confirmed") return "not_confirmed" as const;
+
+      const newStartsAt = new Date(data.newStartsAt);
+      const newEndsAt = new Date(
+        newStartsAt.getTime() + booking.service.durationMinutes * 60_000,
+      );
+
+      // Mesmo slot? Sem trabalho — retorna ok pra UX limpa.
+      // Tolerância de 1s pra cobrir drift de millis (Postgres timestamptz
+      // tem precisão microsegundo; ISO roundtrip pode perder dígitos).
+      const driftMs = Math.abs(newStartsAt.getTime() - booking.startsAt.getTime());
+      if (driftMs < 1000) return "same_slot" as const;
+
+      const updated = await rescheduleBookingByToken(tx, {
+        cancelToken: data.cancelToken,
+        clinicId: clinic.id,
+        newStartsAt,
+        newEndsAt,
+      });
+      return updated ? ("ok" as const) : ("update_failed" as const);
     });
-    if (!updated) {
+
+    if (outcome === "not_found") {
+      return { ok: false, error: "Agendamento não encontrado." };
+    }
+    if (outcome === "not_confirmed") {
+      return {
+        ok: false,
+        error: "Este agendamento não pode ser remarcado (já cancelado/finalizado).",
+      };
+    }
+    if (outcome === "same_slot") {
+      return { ok: true };
+    }
+    if (outcome === "update_failed") {
       return { ok: false, error: "Não foi possível remarcar." };
     }
   } catch (err: unknown) {
@@ -182,7 +193,9 @@ export async function rescheduleBookingAction(input: {
   // Dispara emails em background.
   after(async () => {
     // Re-busca pra ter os novos timestamps.
-    const updated = await getBookingByToken(data.cancelToken);
+    const updated = await withTenant(clinic.id, (tx) =>
+      getBookingByToken(tx, data.cancelToken),
+    );
     if (!updated) return;
 
     await sendBookingConfirmation({

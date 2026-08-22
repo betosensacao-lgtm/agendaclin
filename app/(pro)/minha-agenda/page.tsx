@@ -11,6 +11,7 @@
 import { redirect } from "next/navigation";
 
 import { requireRole } from "@/lib/auth/guards";
+import { withTenant } from "@/lib/db/tenant";
 import { listBookingsInRange } from "@/lib/db/queries/bookings";
 import { getProfessionalByUserId } from "@/lib/db/queries/professionals";
 import {
@@ -38,14 +39,6 @@ export default async function MinhaAgendaPage({
   const user = await requireRole("professional");
   const params = await searchParams;
 
-  // Descobre o profissional vinculado a esse usuário.
-  const pro = await getProfessionalByUserId(user.id, user.clinicId);
-  if (!pro) {
-    // User com role=professional mas sem vínculo na tabela professionals.
-    // Estado inconsistente — desloga e manda pro login com aviso.
-    redirect("/login?error=no_professional_link");
-  }
-
   const today = todayInTz(DEFAULT_TZ);
   const date = params.date && YMD.test(params.date) ? params.date : today;
   const view: "day" | "week" = params.view === "week" ? "week" : "day";
@@ -55,12 +48,25 @@ export default async function MinhaAgendaPage({
       ? weekRangeUtc(date, DEFAULT_TZ)
       : dayRangeUtc(date, DEFAULT_TZ);
 
-  const bookings = await listBookingsInRange({
-    clinicId: user.clinicId,
-    from: range.from,
-    to: range.to,
-    professionalId: pro.id,
+  const { pro, bookings } = await withTenant(user.clinicId, async (tx) => {
+    // Descobre o profissional vinculado a esse usuário.
+    const pro = await getProfessionalByUserId(tx, user.id, user.clinicId);
+    if (!pro) return { pro: null, bookings: [] };
+
+    const bookings = await listBookingsInRange(tx, {
+      clinicId: user.clinicId,
+      from: range.from,
+      to: range.to,
+      professionalId: pro.id,
+    });
+    return { pro, bookings };
   });
+
+  if (!pro) {
+    // User com role=professional mas sem vínculo na tabela professionals.
+    // Estado inconsistente — desloga e manda pro login com aviso.
+    redirect("/login?error=no_professional_link");
+  }
 
   // Agrupa por dia local pra visão semanal.
   const byDay = new Map<string, typeof bookings>();

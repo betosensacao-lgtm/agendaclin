@@ -13,6 +13,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { requireRole } from "@/lib/auth/guards";
+import { withTenant } from "@/lib/db/tenant";
 import {
   createService,
   updateService,
@@ -93,11 +94,13 @@ export async function saveServiceAction(
   };
 
   try {
-    if (parsed.data.id) {
-      await updateService(parsed.data.id, user.clinicId, payload);
-    } else {
-      await createService({ ...payload, clinicId: user.clinicId });
-    }
+    await withTenant(user.clinicId, async (tx) => {
+      if (parsed.data.id) {
+        await updateService(tx, parsed.data.id, user.clinicId, payload);
+      } else {
+        await createService(tx, { ...payload, clinicId: user.clinicId });
+      }
+    });
   } catch (err) {
     console.error("[saveServiceAction]", err);
     return { error: "Não foi possível salvar. Tente novamente." };
@@ -112,6 +115,8 @@ export async function toggleServiceActiveAction(
   active: boolean,
 ): Promise<void> {
   const user = await requireRole("admin");
-  await updateService(id, user.clinicId, { active });
+  await withTenant(user.clinicId, (tx) =>
+    updateService(tx, id, user.clinicId, { active }),
+  );
   revalidatePath("/servicos");
 }

@@ -15,7 +15,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { requireUser } from "@/lib/auth/guards";
-import { db } from "@/lib/db";
+import { withTenant } from "@/lib/db/tenant";
 import {
   BOOKING_STATUSES,
   updateBookingStatus,
@@ -47,33 +47,42 @@ export async function updateBookingStatusAction(input: {
     return { ok: false, error: "Dados inválidos." };
   }
 
-  // Se for profissional, verifica que o booking pertence a ele.
-  if (user.role === "professional") {
-    const pro = await getProfessionalByUserId(user.id, user.clinicId);
-    if (!pro) {
-      return { ok: false, error: "Sem vínculo de profissional." };
+  const updated = await withTenant(user.clinicId, async (tx) => {
+    // Se for profissional, verifica que o booking pertence a ele.
+    if (user.role === "professional") {
+      const pro = await getProfessionalByUserId(tx, user.id, user.clinicId);
+      if (!pro) {
+        return "no_professional" as const;
+      }
+      const [match] = await tx
+        .select({ id: bookings.id })
+        .from(bookings)
+        .where(
+          and(
+            eq(bookings.id, parsed.data.bookingId),
+            eq(bookings.professionalId, pro.id),
+            eq(bookings.clinicId, user.clinicId),
+          ),
+        )
+        .limit(1);
+      if (!match) {
+        return "not_found" as const;
+      }
     }
-    const [match] = await db
-      .select({ id: bookings.id })
-      .from(bookings)
-      .where(
-        and(
-          eq(bookings.id, parsed.data.bookingId),
-          eq(bookings.professionalId, pro.id),
-          eq(bookings.clinicId, user.clinicId),
-        ),
-      )
-      .limit(1);
-    if (!match) {
-      return { ok: false, error: "Consulta não encontrada." };
-    }
-  }
 
-  const updated = await updateBookingStatus({
-    bookingId: parsed.data.bookingId,
-    clinicId: user.clinicId,
-    newStatus: parsed.data.newStatus,
+    return updateBookingStatus(tx, {
+      bookingId: parsed.data.bookingId,
+      clinicId: user.clinicId,
+      newStatus: parsed.data.newStatus,
+    });
   });
+
+  if (updated === "no_professional") {
+    return { ok: false, error: "Sem vínculo de profissional." };
+  }
+  if (updated === "not_found") {
+    return { ok: false, error: "Consulta não encontrada." };
+  }
 
   if (!updated) {
     return { ok: false, error: "Consulta não encontrada." };

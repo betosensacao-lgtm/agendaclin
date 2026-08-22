@@ -16,6 +16,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { requireRole } from "@/lib/auth/guards";
+import { withTenant } from "@/lib/db/tenant";
 import {
   type BookingStatus,
   listBookingsPaginated,
@@ -58,16 +59,22 @@ export default async function ConsultasPage({
   const professionalId = params.professionalId || null;
   const status = params.status && isStatus(params.status) ? params.status : null;
 
-  const [professionals, { rows, total }] = await Promise.all([
-    listProfessionalsByClinic(user.clinicId),
-    listBookingsPaginated({
-      clinicId: user.clinicId,
-      page,
-      pageSize: PAGE_SIZE,
-      professionalId,
-      statuses: status ? [status] : undefined,
-    }),
-  ]);
+  const { professionals, rows, total } = await withTenant(
+    user.clinicId,
+    async (tx) => {
+      const [professionals, { rows, total }] = await Promise.all([
+        listProfessionalsByClinic(tx, user.clinicId),
+        listBookingsPaginated(tx, {
+          clinicId: user.clinicId,
+          page,
+          pageSize: PAGE_SIZE,
+          professionalId,
+          statuses: status ? [status] : undefined,
+        }),
+      ]);
+      return { professionals, rows, total };
+    },
+  );
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 

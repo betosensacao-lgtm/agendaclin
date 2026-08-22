@@ -2,6 +2,7 @@
 
 import { after } from "next/server";
 
+import { withTenant } from "@/lib/db/tenant";
 import {
   cancelBookingByToken,
   getBookingByToken,
@@ -20,10 +21,12 @@ export async function cancelBookingAction(
   const clinic = await getClinicBySlug(clinicSlug);
   if (!clinic) return { ok: false, error: "Clínica não encontrada." };
 
-  // Carrega detalhes ANTES de cancelar (pra ter os dados pro email).
-  const details = await getBookingByToken(cancelToken);
-
-  const cancelled = await cancelBookingByToken(cancelToken, clinic.id);
+  const { details, cancelled } = await withTenant(clinic.id, async (tx) => {
+    // Carrega detalhes ANTES de cancelar (pra ter os dados pro email).
+    const details = await getBookingByToken(tx, cancelToken);
+    const cancelled = await cancelBookingByToken(tx, cancelToken, clinic.id);
+    return { details, cancelled };
+  });
   if (!cancelled) {
     return {
       ok: false,

@@ -3,13 +3,16 @@
  * e delega para o client component (que cuida de dialog + form state).
  */
 import { requireRole } from "@/lib/auth/guards";
+import { withTenant } from "@/lib/db/tenant";
 import { listServicesByClinic } from "@/lib/db/queries/services";
 
 import { ServicesPanel } from "./services-panel";
 
 export default async function ServicosPage() {
   const user = await requireRole("admin");
-  const services = await listServicesByClinic(user.clinicId);
+  const services = await withTenant(user.clinicId, (tx) =>
+    listServicesByClinic(tx, user.clinicId),
+  );
 
   return (
     <div className="space-y-6">

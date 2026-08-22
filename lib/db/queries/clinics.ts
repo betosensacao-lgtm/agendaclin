@@ -1,9 +1,20 @@
 /**
  * Queries relacionadas à tabela `clinics` e dados públicos da clínica.
+ *
+ * Tenant RLS (drizzle/migrations/0002_real_tenant_rls.sql): `clinics`
+ * tem leitura pública (policy clinics_public_read) — por isso
+ * `isSlugAvailable`/`getClinicBySlug` usam o `db` global direto, sem
+ * precisar de withTenant (é exatamente o caso de uso: resolver a
+ * clínica pelo slug ANTES de qualquer contexto de tenant existir).
+ * As demais funções (que tocam `services`/`professionals`, tenant-
+ * scoped) recebem `tx` e devem rodar dentro de withTenant(clinicId, ...)
+ * — inclusive as "públicas" do wizard de agendamento, que já sabem o
+ * clinicId (resolvido via getClinicBySlug) antes de chamá-las.
  */
 import { and, eq } from "drizzle-orm";
 
 import { db } from "@/lib/db";
+import type { Transaction } from "@/lib/db/types";
 import {
   clinics,
   professionalServices,
@@ -79,6 +90,10 @@ export function isReservedSlug(slug: string): boolean {
  *   - formato válido
  *   - não está na lista de reservados
  *   - não está em uso em `clinics`
+ *
+ * Roda fora de qualquer contexto de tenant (é literalmente checado
+ * antes da clínica existir) — usa `db` global, coberto pela policy
+ * clinics_public_read.
  */
 export async function isSlugAvailable(slug: string): Promise<boolean> {
   if (!SLUG_REGEX.test(slug)) return false;
@@ -93,17 +108,21 @@ export async function isSlugAvailable(slug: string): Promise<boolean> {
   return !existing;
 }
 
-/** Retorna clínica por ID. null se não existir. */
-export async function getClinicById(id: string) {
-  const rows = await db.select().from(clinics).where(eq(clinics.id, id)).limit(1);
+/** Retorna clínica por ID. null se não existir. Chamar dentro de withTenant. */
+export async function getClinicById(tx: Transaction, id: string) {
+  const rows = await tx.select().from(clinics).where(eq(clinics.id, id)).limit(1);
   return rows[0] ?? null;
 }
 
 /**
- * Marca o onboarding como concluído. Idempotente.
+ * Marca o onboarding como concluído. Idempotente. Chamar dentro de
+ * withTenant(clinicId, ...).
  */
-export async function markOnboardingCompleted(clinicId: string): Promise<void> {
-  await db
+export async function markOnboardingCompleted(
+  tx: Transaction,
+  clinicId: string,
+): Promise<void> {
+  await tx
     .update(clinics)
     .set({ onboardingCompleted: true })
     .where(eq(clinics.id, clinicId));
@@ -111,7 +130,8 @@ export async function markOnboardingCompleted(clinicId: string): Promise<void> {
 
 /**
  * Estado de cada passo do wizard de onboarding. Calculado a partir do
- * estado atual do banco — não precisa rastrear flags por etapa.
+ * estado atual do banco — não precisa rastrear flags por etapa. Chamar
+ * dentro de withTenant(clinicId, ...).
  */
 export type OnboardingStatus = {
   clinicConfigured: boolean;
@@ -122,9 +142,10 @@ export type OnboardingStatus = {
 };
 
 export async function getOnboardingStatus(
+  tx: Transaction,
   clinicId: string,
 ): Promise<OnboardingStatus> {
-  const [clinic] = await db
+  const [clinic] = await tx
     .select({
       contactEmail: clinics.contactEmail,
       phone: clinics.phone,
@@ -134,13 +155,13 @@ export async function getOnboardingStatus(
     .where(eq(clinics.id, clinicId))
     .limit(1);
 
-  const [hasService] = await db
+  const [hasService] = await tx
     .select({ id: services.id })
     .from(services)
     .where(and(eq(services.clinicId, clinicId), eq(services.active, true)))
     .limit(1);
 
-  const [hasPro] = await db
+  const [hasPro] = await tx
     .select({ id: professionals.id })
     .from(professionals)
     .where(
@@ -154,7 +175,7 @@ export async function getOnboardingStatus(
   // Disponibilidade: pelo menos 1 faixa cadastrada em algum profissional
   // ativo. Faz join leve.
   const { weeklyAvailability } = await import("@/lib/db/schema");
-  const [hasAvail] = await db
+  const [hasAvail] = await tx
     .select({ id: weeklyAvailability.id })
     .from(weeklyAvailability)
     .innerJoin(
@@ -182,9 +203,11 @@ export async function getOnboardingStatus(
 
 /**
  * Atualiza dados editáveis da clínica. Tudo opcional — só atualiza os
- * campos passados. Escopado por id (admin já valida ownership via session).
+ * campos passados. Escopado por id (admin já valida ownership via
+ * session). Chamar dentro de withTenant(clinicId, ...).
  */
 export async function updateClinicFields(
+  tx: Transaction,
   id: string,
   patch: {
     name?: string;
@@ -195,7 +218,7 @@ export async function updateClinicFields(
     logoUrl?: string | null;
   },
 ) {
-  const [updated] = await db
+  const [updated] = await tx
     .update(clinics)
     .set(patch)
     .where(eq(clinics.id, id))
@@ -203,7 +226,10 @@ export async function updateClinicFields(
   return updated ?? null;
 }
 
-/** Retorna clínica pelo slug público. null se não existir. */
+/**
+ * Retorna clínica pelo slug público. null se não existir. Roda fora de
+ * contexto de tenant — usa `db` global, coberto por clinics_public_read.
+ */
 export async function getClinicBySlug(slug: string) {
   const rows = await db
     .select()
@@ -213,9 +239,13 @@ export async function getClinicBySlug(slug: string) {
   return rows[0] ?? null;
 }
 
-/** Retorna serviços ativos de uma clínica para exibição pública. */
-export async function getPublicServices(clinicId: string) {
-  return db
+/**
+ * Retorna serviços ativos de uma clínica para exibição pública. Chamar
+ * dentro de withTenant(clinicId, ...) — o caller (wizard público) já
+ * conhece o clinicId nesse ponto (resolvido via getClinicBySlug).
+ */
+export async function getPublicServices(tx: Transaction, clinicId: string) {
+  return tx
     .select({
       id: services.id,
       name: services.name,
@@ -229,13 +259,15 @@ export async function getPublicServices(clinicId: string) {
 
 /**
  * Retorna profissionais ativos que atendem um determinado serviço.
- * Usado no step 2 do wizard (seleção de profissional).
+ * Usado no step 2 do wizard (seleção de profissional). Chamar dentro de
+ * withTenant(clinicId, ...).
  */
 export async function getPublicProfessionalsByService(
+  tx: Transaction,
   clinicId: string,
   serviceId: string,
 ) {
-  return db
+  return tx
     .select({
       id: professionals.id,
       name: professionals.name,

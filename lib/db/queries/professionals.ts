@@ -3,10 +3,13 @@
  * services (via `professional_services`), exportamos um tipo
  * "rico" `ProfessionalWithServices` que carrega os serviços já
  * agrupados — pra evitar N+1 na UI.
+ *
+ * Tenant RLS: toda função recebe `tx` de withTenant(clinicId, ...) —
+ * ver lib/db/tenant.ts e drizzle/migrations/0002_real_tenant_rls.sql.
  */
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
 
-import { db } from "@/lib/db";
+import type { Transaction } from "@/lib/db/types";
 import {
   professionalServices,
   professionals,
@@ -21,9 +24,10 @@ export type ProfessionalWithServices = Professional & {
 };
 
 export async function listProfessionalsByClinic(
+  tx: Transaction,
   clinicId: string,
 ): Promise<ProfessionalWithServices[]> {
-  const pros = await db
+  const pros = await tx
     .select()
     .from(professionals)
     .where(eq(professionals.clinicId, clinicId))
@@ -33,7 +37,7 @@ export async function listProfessionalsByClinic(
 
   const ids = pros.map((p) => p.id);
 
-  const links = await db
+  const links = await tx
     .select({
       professionalId: professionalServices.professionalId,
       service: {
@@ -67,10 +71,11 @@ export async function listProfessionalsByClinic(
  * representa). Retorna null se o user não está vinculado a nenhum pro.
  */
 export async function getProfessionalByUserId(
+  tx: Transaction,
   userId: string,
   clinicId: string,
 ): Promise<Professional | null> {
-  const [pro] = await db
+  const [pro] = await tx
     .select()
     .from(professionals)
     .where(
@@ -84,10 +89,11 @@ export async function getProfessionalByUserId(
 }
 
 export async function getProfessionalById(
+  tx: Transaction,
   id: string,
   clinicId: string,
 ): Promise<ProfessionalWithServices | null> {
-  const [pro] = await db
+  const [pro] = await tx
     .select()
     .from(professionals)
     .where(and(eq(professionals.id, id), eq(professionals.clinicId, clinicId)))
@@ -95,7 +101,7 @@ export async function getProfessionalById(
 
   if (!pro) return null;
 
-  const linked = await db
+  const linked = await tx
     .select({
       id: services.id,
       name: services.name,
@@ -112,18 +118,20 @@ export async function getProfessionalById(
 }
 
 export async function createProfessional(
+  tx: Transaction,
   input: NewProfessional,
 ): Promise<Professional> {
-  const [p] = await db.insert(professionals).values(input).returning();
+  const [p] = await tx.insert(professionals).values(input).returning();
   return p;
 }
 
 export async function updateProfessional(
+  tx: Transaction,
   id: string,
   clinicId: string,
   patch: Partial<Pick<NewProfessional, "name" | "active" | "userId">>,
 ): Promise<Professional | null> {
-  const [p] = await db
+  const [p] = await tx
     .update(professionals)
     .set(patch)
     .where(and(eq(professionals.id, id), eq(professionals.clinicId, clinicId)))
@@ -133,25 +141,26 @@ export async function updateProfessional(
 
 /**
  * Sincroniza os serviços vinculados a um profissional — apaga todos os
- * links existentes e insere os novos. Roda em transação pra garantir
- * consistência. `serviceIds` esperado já validado (não verifica clinic).
+ * links existentes e insere os novos. `serviceIds` esperado já validado
+ * (não verifica clinic). Roda dentro do MESMO `tx` do caller (não abre
+ * uma segunda transação) pra manter tudo atômico dentro do
+ * withTenant(...) que já envolve a chamada.
  */
 export async function syncProfessionalServices(
+  tx: Transaction,
   professionalId: string,
   serviceIds: string[],
 ): Promise<void> {
-  await db.transaction(async (tx) => {
-    await tx
-      .delete(professionalServices)
-      .where(eq(professionalServices.professionalId, professionalId));
+  await tx
+    .delete(professionalServices)
+    .where(eq(professionalServices.professionalId, professionalId));
 
-    if (serviceIds.length > 0) {
-      await tx.insert(professionalServices).values(
-        serviceIds.map((sid) => ({
-          professionalId,
-          serviceId: sid,
-        })),
-      );
-    }
-  });
+  if (serviceIds.length > 0) {
+    await tx.insert(professionalServices).values(
+      serviceIds.map((sid) => ({
+        professionalId,
+        serviceId: sid,
+      })),
+    );
+  }
 }

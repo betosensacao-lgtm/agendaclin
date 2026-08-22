@@ -16,7 +16,7 @@ import { and, eq } from "drizzle-orm";
 import { after } from "next/server";
 import { z } from "zod";
 
-import { db } from "@/lib/db";
+import { withTenant } from "@/lib/db/tenant";
 import {
   professionals,
   professionalServices,
@@ -71,34 +71,6 @@ export async function getAvailableSlotsAction(input: {
   dateLocal: string;
   timezone: string;
 }): Promise<SlotResult[]> {
-  // Valida profissional pertence à clínica e está ativo.
-  const [pro] = await db
-    .select({ id: professionals.id })
-    .from(professionals)
-    .where(
-      and(
-        eq(professionals.id, input.professionalId),
-        eq(professionals.clinicId, input.clinicId),
-        eq(professionals.active, true),
-      ),
-    )
-    .limit(1);
-  if (!pro) return [];
-
-  // Busca duração do serviço.
-  const [svc] = await db
-    .select({ durationMinutes: services.durationMinutes })
-    .from(services)
-    .where(
-      and(
-        eq(services.id, input.serviceId),
-        eq(services.clinicId, input.clinicId),
-        eq(services.active, true),
-      ),
-    )
-    .limit(1);
-  if (!svc) return [];
-
   // Range: só o dia selecionado (to = dia seguinte, exclusivo).
   const { dateLocal, timezone } = input;
   const nextDay = (() => {
@@ -107,20 +79,59 @@ export async function getAvailableSlotsAction(input: {
     return d.toISOString().slice(0, 10);
   })();
 
-  // Busca em paralelo: faixas semanais, overrides e bookings do dia.
-  const [weeklyAvail, overrides, bookings] = await Promise.all([
-    db
-      .select()
-      .from(weeklyAvailability)
-      .where(eq(weeklyAvailability.professionalId, input.professionalId)),
-    listOverridesAffectingProfessional(input.professionalId, input.clinicId),
-    // Range generoso em UTC para cobrir o dia completo em qualquer fuso.
-    getConfirmedBookingsInRange(
-      input.professionalId,
-      new Date(`${dateLocal}T00:00:00Z`),
-      new Date(`${nextDay}T06:00:00Z`),
-    ),
-  ]);
+  const result = await withTenant(input.clinicId, async (tx) => {
+    // Valida profissional pertence à clínica e está ativo.
+    const [pro] = await tx
+      .select({ id: professionals.id })
+      .from(professionals)
+      .where(
+        and(
+          eq(professionals.id, input.professionalId),
+          eq(professionals.clinicId, input.clinicId),
+          eq(professionals.active, true),
+        ),
+      )
+      .limit(1);
+    if (!pro) return null;
+
+    // Busca duração do serviço.
+    const [svc] = await tx
+      .select({ durationMinutes: services.durationMinutes })
+      .from(services)
+      .where(
+        and(
+          eq(services.id, input.serviceId),
+          eq(services.clinicId, input.clinicId),
+          eq(services.active, true),
+        ),
+      )
+      .limit(1);
+    if (!svc) return null;
+
+    // Busca em paralelo: faixas semanais, overrides e bookings do dia.
+    const [weeklyAvail, overrides, bookings] = await Promise.all([
+      tx
+        .select()
+        .from(weeklyAvailability)
+        .where(eq(weeklyAvailability.professionalId, input.professionalId)),
+      listOverridesAffectingProfessional(
+        tx,
+        input.professionalId,
+        input.clinicId,
+      ),
+      // Range generoso em UTC para cobrir o dia completo em qualquer fuso.
+      getConfirmedBookingsInRange(
+        tx,
+        input.professionalId,
+        new Date(`${dateLocal}T00:00:00Z`),
+        new Date(`${nextDay}T06:00:00Z`),
+      ),
+    ]);
+
+    return { svc, weeklyAvail, overrides, bookings };
+  });
+  if (!result) return [];
+  const { svc, weeklyAvail, overrides, bookings } = result;
 
   const slots = generateSlots({
     durationMinutes: svc.durationMinutes,
@@ -204,74 +215,84 @@ export async function createBookingAction(
   const clinic = await getClinicBySlug(data.clinicSlug);
   if (!clinic) return { ok: false, error: "Clínica não encontrada." };
 
-  // 4. Valida serviço.
-  const [svc] = await db
-    .select({ id: services.id, durationMinutes: services.durationMinutes })
-    .from(services)
-    .where(
-      and(
-        eq(services.id, data.serviceId),
-        eq(services.clinicId, clinic.id),
-        eq(services.active, true),
-      ),
-    )
-    .limit(1);
-  if (!svc) return { ok: false, error: "Serviço não encontrado ou inativo." };
-
-  // 5. Valida profissional.
-  const [pro] = await db
-    .select({ id: professionals.id })
-    .from(professionals)
-    .where(
-      and(
-        eq(professionals.id, data.professionalId),
-        eq(professionals.clinicId, clinic.id),
-        eq(professionals.active, true),
-      ),
-    )
-    .limit(1);
-  if (!pro)
-    return { ok: false, error: "Profissional não encontrado ou inativo." };
-
-  // 6. Valida vínculo profissional → serviço.
-  const [link] = await db
-    .select({ serviceId: professionalServices.serviceId })
-    .from(professionalServices)
-    .where(
-      and(
-        eq(professionalServices.professionalId, data.professionalId),
-        eq(professionalServices.serviceId, data.serviceId),
-      ),
-    )
-    .limit(1);
-  if (!link)
-    return {
-      ok: false,
-      error: "Este profissional não atende este serviço.",
-    };
-
-  // 7. Calcula horário de fim.
-  const startsAt = new Date(data.startsAt);
-  const endsAt = new Date(
-    startsAt.getTime() + svc.durationMinutes * 60_000,
-  );
-
-  // 8. Insere booking — captura violação do unique partial index (23505).
+  // 4-8. Validações + insert, tudo dentro do contexto de tenant da clínica.
+  let booking: { id: string; cancelToken: string };
   try {
-    const booking = await createBooking({
-      clinicId: clinic.id,
-      professionalId: data.professionalId,
-      serviceId: data.serviceId,
-      patientName: data.patientName,
-      patientPhone: data.patientPhone,
-      patientEmail: data.patientEmail.toLowerCase(),
-      startsAt,
-      endsAt,
+    const result = await withTenant(clinic.id, async (tx) => {
+      // 4. Valida serviço.
+      const [svc] = await tx
+        .select({ id: services.id, durationMinutes: services.durationMinutes })
+        .from(services)
+        .where(
+          and(
+            eq(services.id, data.serviceId),
+            eq(services.clinicId, clinic.id),
+            eq(services.active, true),
+          ),
+        )
+        .limit(1);
+      if (!svc) return "service_not_found" as const;
+
+      // 5. Valida profissional.
+      const [pro] = await tx
+        .select({ id: professionals.id })
+        .from(professionals)
+        .where(
+          and(
+            eq(professionals.id, data.professionalId),
+            eq(professionals.clinicId, clinic.id),
+            eq(professionals.active, true),
+          ),
+        )
+        .limit(1);
+      if (!pro) return "professional_not_found" as const;
+
+      // 6. Valida vínculo profissional → serviço.
+      const [link] = await tx
+        .select({ serviceId: professionalServices.serviceId })
+        .from(professionalServices)
+        .where(
+          and(
+            eq(professionalServices.professionalId, data.professionalId),
+            eq(professionalServices.serviceId, data.serviceId),
+          ),
+        )
+        .limit(1);
+      if (!link) return "service_professional_mismatch" as const;
+
+      // 7. Calcula horário de fim.
+      const startsAt = new Date(data.startsAt);
+      const endsAt = new Date(startsAt.getTime() + svc.durationMinutes * 60_000);
+
+      // 8. Insere booking — captura violação do unique partial index (23505).
+      return createBooking(tx, {
+        clinicId: clinic.id,
+        professionalId: data.professionalId,
+        serviceId: data.serviceId,
+        patientName: data.patientName,
+        patientPhone: data.patientPhone,
+        patientEmail: data.patientEmail.toLowerCase(),
+        startsAt,
+        endsAt,
+      });
     });
+
+    if (result === "service_not_found") {
+      return { ok: false, error: "Serviço não encontrado ou inativo." };
+    }
+    if (result === "professional_not_found") {
+      return { ok: false, error: "Profissional não encontrado ou inativo." };
+    }
+    if (result === "service_professional_mismatch") {
+      return { ok: false, error: "Este profissional não atende este serviço." };
+    }
+    booking = result;
 
     // 9. Dispara emails em background (não bloqueia a resposta).
     after(async () => {
-      const details = await getBookingByToken(booking.cancelToken);
+      const details = await withTenant(clinic.id, (tx) =>
+        getBookingByToken(tx, booking.cancelToken),
+      );
       if (!details) return;
 
       // Confirmação ao paciente (com .ics anexo)
