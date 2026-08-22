@@ -1,5 +1,6 @@
 /**
- * Contexto de tenant para RLS real (ver drizzle/migrations/0002_real_tenant_rls.sql).
+ * Contexto de tenant para RLS real (ver drizzle/migrations/0002_real_tenant_rls.sql
+ * + 0003_harden_rls_nullif.sql).
  *
  * As policies do banco leem `current_setting('app.clinic_id')`. Essa
  * variável de sessão só existe dentro de uma transação (`SET LOCAL`) —

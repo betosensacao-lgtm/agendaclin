@@ -1,21 +1,25 @@
 /**
- * Prova, contra um Postgres real, que a RLS de
- * drizzle/migrations/0002_real_tenant_rls.sql realmente isola tenants —
- * não só que o código da app filtra clinic_id (isso já era verdade
- * antes), mas que o PRÓPRIO BANCO recusa/filtra quando a role
- * app_runtime tenta ler ou escrever fora do clinic_id setado em
- * `app.clinic_id`.
+ * Prova, contra um Postgres real (via pooler transaction-mode, igual
+ * produção), que a RLS de drizzle/migrations/0002_real_tenant_rls.sql
+ * realmente isola tenants — não só que o código da app filtra clinic_id
+ * (isso já era verdade antes), mas que o PRÓPRIO BANCO recusa/filtra
+ * quando a role app_runtime tenta ler ou escrever fora do clinic_id
+ * setado em `app.clinic_id`.
+ *
+ * IMPORTANTE: todo acesso aqui usa `withTenantTx` (SET LOCAL dentro de
+ * uma transação real), nunca `set_config(..., false)` (sessão) — em
+ * pooler transaction-mode, connections físicas são reaproveitadas entre
+ * clientes lógicos diferentes, e um `set_config` de sessão pode
+ * vazar pra a próxima transação que pegar a mesma connection física.
+ * `SET LOCAL` é a única forma segura: reseta garantidamente no
+ * COMMIT/ROLLBACK, que é exatamente o limite que o pooler respeita.
+ * Isso espelha `lib/db/tenant.ts::withTenant` de propósito.
  *
  * Requer TEST_DATABASE_URL apontando pra um banco (idealmente um projeto
  * Supabase de teste/staging, NUNCA produção) já com a migration 0002
  * aplicada e a role app_runtime criada com senha. Sem essa env var, os
  * testes são pulados — não quebra CI/dev machines sem acesso a um banco
- * real. Ver AGENTS.md / .env.example para como provisionar.
- *
- * Setup/teardown usam a mesma conexão app_runtime, aproveitando que
- * `clinics_tenant_insert`/`users_tenant_insert` permitem INSERT quando
- * nenhum app.clinic_id está setado (o mesmo caminho que o signup real
- * usa) — não precisa de uma segunda credencial admin só pra este teste.
+ * real.
  */
 import { randomUUID } from "node:crypto";
 
@@ -34,7 +38,7 @@ import {
 const TEST_DATABASE_URL = process.env.TEST_DATABASE_URL;
 
 describe.skipIf(!TEST_DATABASE_URL)("RLS real de tenant (app_runtime)", () => {
-  const client = postgres(TEST_DATABASE_URL!, { max: 1 });
+  const client = postgres(TEST_DATABASE_URL!, { max: 3, prepare: false });
   const db = drizzle(client);
 
   let clinicA: string;
@@ -42,23 +46,27 @@ describe.skipIf(!TEST_DATABASE_URL)("RLS real de tenant (app_runtime)", () => {
   let bookingA: string;
   let bookingB: string;
 
-  // is_local=false (sessão, não transação) porque este helper roda fora de
-  // uma transação explícita — a conexão de teste é única (max: 1) e
-  // dedicada, então persistir no nível de sessão é seguro aqui. Em
-  // produção (lib/db/tenant.ts) o mecanismo real usa is_local=true dentro
-  // de uma transação por request — isso é só o setup deste teste.
-  async function setClinicContext(clinicId: string | null) {
-    await db.execute(
-      sql`SELECT set_config('app.clinic_id', ${clinicId}, false)`,
-    );
+  /** Espelha lib/db/tenant.ts::withTenant — SET LOCAL dentro de uma
+   * transação de verdade, seguro sob pooler transaction-mode. */
+  async function withTenantTx<T>(
+    clinicId: string | null,
+    fn: (tx: Parameters<Parameters<typeof db.transaction>[0]>[0]) => Promise<T>,
+  ): Promise<T> {
+    return db.transaction(async (tx) => {
+      if (clinicId !== null) {
+        await tx.execute(
+          sql`SELECT set_config('app.clinic_id', ${clinicId}, true)`,
+        );
+      }
+      return fn(tx);
+    });
   }
 
   beforeAll(async () => {
     // Bootstrap: sem app.clinic_id setado, a policy de INSERT libera
     // criar uma clínica nova (mesmo caminho do signup real).
-    await db.transaction(async (tx) => {
+    const { ca, cb } = await withTenantTx(null, async (tx) => {
       const suffix = randomUUID().slice(0, 8);
-
       const [ca] = await tx
         .insert(clinics)
         .values({ slug: `rls-test-a-${suffix}`, name: "RLS Test Clinic A" })
@@ -67,18 +75,16 @@ describe.skipIf(!TEST_DATABASE_URL)("RLS real de tenant (app_runtime)", () => {
         .insert(clinics)
         .values({ slug: `rls-test-b-${suffix}`, name: "RLS Test Clinic B" })
         .returning({ id: clinics.id });
-      clinicA = ca.id;
-      clinicB = cb.id;
+      return { ca, cb };
     });
+    clinicA = ca.id;
+    clinicB = cb.id;
 
     // Cada linha (profissional, serviço, booking) é criada já dentro do
     // contexto da própria clínica — exercita o caminho normal, não o
     // bootstrap.
     async function seedBooking(clinicId: string) {
-      return db.transaction(async (tx) => {
-        await tx.execute(
-          sql`SELECT set_config('app.clinic_id', ${clinicId}, true)`,
-        );
+      return withTenantTx(clinicId, async (tx) => {
         const [pro] = await tx
           .insert(professionals)
           .values({ clinicId, name: "Dra. Teste" })
@@ -113,8 +119,7 @@ describe.skipIf(!TEST_DATABASE_URL)("RLS real de tenant (app_runtime)", () => {
     // sem isso, a policy tenant_all bloquearia o próprio DELETE.
     for (const id of [clinicA, clinicB]) {
       if (!id) continue;
-      await db.transaction(async (tx) => {
-        await tx.execute(sql`SELECT set_config('app.clinic_id', ${id}, true)`);
+      await withTenantTx(id, async (tx) => {
         await tx.delete(bookings).where(sql`clinic_id = ${id}::uuid`);
         await tx.delete(services).where(sql`clinic_id = ${id}::uuid`);
         await tx.delete(professionals).where(sql`clinic_id = ${id}::uuid`);
@@ -131,68 +136,62 @@ describe.skipIf(!TEST_DATABASE_URL)("RLS real de tenant (app_runtime)", () => {
   });
 
   it("clínica A consegue ler o próprio booking", async () => {
-    await setClinicContext(clinicA);
-    const rows = await db
-      .select({ id: bookings.id })
-      .from(bookings)
-      .where(sql`id = ${bookingA}::uuid`);
+    const rows = await withTenantTx(clinicA, (tx) =>
+      tx
+        .select({ id: bookings.id })
+        .from(bookings)
+        .where(sql`id = ${bookingA}::uuid`),
+    );
     expect(rows).toHaveLength(1);
   });
 
   it("clínica A NÃO consegue ler o booking da clínica B", async () => {
-    await setClinicContext(clinicA);
-    const rows = await db
-      .select({ id: bookings.id })
-      .from(bookings)
-      .where(sql`id = ${bookingB}::uuid`);
+    const rows = await withTenantTx(clinicA, (tx) =>
+      tx
+        .select({ id: bookings.id })
+        .from(bookings)
+        .where(sql`id = ${bookingB}::uuid`),
+    );
     expect(rows).toHaveLength(0);
   });
 
   it("clínica A NÃO consegue atualizar o booking da clínica B", async () => {
-    await setClinicContext(clinicA);
-    const rows = await db
-      .update(bookings)
-      .set({ status: "cancelled" })
-      .where(sql`id = ${bookingB}::uuid`)
-      .returning({ id: bookings.id });
+    const rows = await withTenantTx(clinicA, (tx) =>
+      tx
+        .update(bookings)
+        .set({ status: "cancelled" })
+        .where(sql`id = ${bookingB}::uuid`)
+        .returning({ id: bookings.id }),
+    );
     expect(rows).toHaveLength(0);
 
     // Confirma que o status realmente não mudou (lendo como clínica B).
-    await setClinicContext(clinicB);
-    const [row] = await db
-      .select({ status: bookings.status })
-      .from(bookings)
-      .where(sql`id = ${bookingB}::uuid`);
+    const [row] = await withTenantTx(clinicB, (tx) =>
+      tx
+        .select({ status: bookings.status })
+        .from(bookings)
+        .where(sql`id = ${bookingB}::uuid`),
+    );
     expect(row?.status).toBe("confirmed");
   });
 
   it("sem app.clinic_id setado, nenhuma clínica é legível", async () => {
-    // Conexão nova e dedicada — a compartilhada pelo resto do arquivo já
-    // teve app.clinic_id setado em nível de sessão (set_config(...,
-    // false) no helper acima), então "resetar" nela não reproduz um
-    // contexto genuinamente virgem (current_setting volta pra '', não
-    // NULL). Uma transação de request real (withTenant) nunca sofre
-    // disso — cada uma é uma transação nova onde SET LOCAL nunca tocou
-    // a variável até ser explicitamente setada.
-    const freshClient = postgres(TEST_DATABASE_URL!, { max: 1 });
-    const freshDb = drizzle(freshClient);
-    try {
-      const rows = await freshDb
+    const rows = await withTenantTx(null, (tx) =>
+      tx
         .select({ id: bookings.id })
         .from(bookings)
-        .where(sql`id IN (${bookingA}::uuid, ${bookingB}::uuid)`);
-      expect(rows).toHaveLength(0);
-    } finally {
-      await freshClient.end({ timeout: 5 });
-    }
+        .where(sql`id IN (${bookingA}::uuid, ${bookingB}::uuid)`),
+    );
+    expect(rows).toHaveLength(0);
   });
 
   it("clinics continua legível publicamente (landing pública por slug)", async () => {
-    await setClinicContext(null);
-    const rows = await db
-      .select({ id: clinics.id })
-      .from(clinics)
-      .where(sql`id = ${clinicA}::uuid`);
+    const rows = await withTenantTx(null, (tx) =>
+      tx
+        .select({ id: clinics.id })
+        .from(clinics)
+        .where(sql`id = ${clinicA}::uuid`),
+    );
     expect(rows).toHaveLength(1);
   });
 });
