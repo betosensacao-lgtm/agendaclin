@@ -9,6 +9,7 @@
  * salvar antes de trocar (sem perda silenciosa).
  */
 import { requireRole } from "@/lib/auth/guards";
+import { withTenant } from "@/lib/db/tenant";
 import {
   getWeeklyAvailability,
   listFutureOverrides,
@@ -25,21 +26,28 @@ export default async function HorariosPage({
   const user = await requireRole("admin");
   const params = await searchParams;
 
-  const allPros = await listProfessionalsByClinic(user.clinicId);
-  const activePros = allPros.filter((p) => p.active);
+  const { activePros, weekly, overrides, selectedId } = await withTenant(
+    user.clinicId,
+    async (tx) => {
+      const allPros = await listProfessionalsByClinic(tx, user.clinicId);
+      const activePros = allPros.filter((p) => p.active);
 
-  // Profissional selecionado: do query param se válido, senão o primeiro ativo.
-  const selectedId =
-    params.prof && activePros.some((p) => p.id === params.prof)
-      ? params.prof
-      : (activePros[0]?.id ?? null);
+      // Profissional selecionado: do query param se válido, senão o primeiro ativo.
+      const selectedId =
+        params.prof && activePros.some((p) => p.id === params.prof)
+          ? params.prof
+          : (activePros[0]?.id ?? null);
 
-  const [weekly, overrides] = await Promise.all([
-    selectedId
-      ? getWeeklyAvailability(selectedId, user.clinicId)
-      : Promise.resolve([]),
-    listFutureOverrides(user.clinicId),
-  ]);
+      const [weekly, overrides] = await Promise.all([
+        selectedId
+          ? getWeeklyAvailability(tx, selectedId, user.clinicId)
+          : Promise.resolve([]),
+        listFutureOverrides(tx, user.clinicId),
+      ]);
+
+      return { activePros, weekly, overrides, selectedId };
+    },
+  );
 
   return (
     <div className="space-y-6">

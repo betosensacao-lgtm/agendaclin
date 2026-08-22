@@ -7,6 +7,13 @@
  * - O anti-double-booking é garantido pelo unique partial index
  *   `uniq_confirmed_slot` (professional_id, starts_at) WHERE status='confirmed'.
  *   O INSERT vai lançar PostgresError code 23505 se houver conflito.
+ *
+ * Tenant RLS (drizzle/migrations/0002_real_tenant_rls.sql): toda função
+ * aqui recebe `tx` (de withTenant/withBookingToken em lib/db/tenant.ts)
+ * em vez de importar `db` direto — sem isso, a policy de RLS não tem
+ * `app.clinic_id`/`app.cancel_token` setado e a query não retorna nada
+ * (ou falha o INSERT/UPDATE). O filtro por clinicId/cancelToken no WHERE
+ * continua aqui também — RLS é a segunda camada, não substitui a primeira.
  */
 import {
   and,
@@ -23,7 +30,7 @@ import {
   sql,
 } from "drizzle-orm";
 
-import { db } from "@/lib/db";
+import type { DbClient, Transaction } from "@/lib/db/types";
 import {
   bookings,
   clinics,
@@ -72,13 +79,16 @@ export type BookingWithDetails = {
 // ---- Leitura ----
 
 /**
- * Busca um booking pelo cancel_token. Retorna detalhes completos
- * (profissional + serviço) para exibir na página de confirmação/cancelamento.
+ * Busca um booking pelo cancel_token. Chamar dentro de
+ * `withBookingToken(cancelToken, tx => getBookingByToken(tx, cancelToken))`.
+ * Retorna detalhes completos (profissional + serviço) para exibir na
+ * página de confirmação/cancelamento.
  */
 export async function getBookingByToken(
+  tx: Transaction,
   cancelToken: string,
 ): Promise<BookingWithDetails | null> {
-  const rows = await db
+  const rows = await tx
     .select({
       id: bookings.id,
       cancelToken: bookings.cancelToken,
@@ -124,13 +134,17 @@ export async function getBookingByToken(
 /**
  * Retorna bookings confirmados de um profissional que se sobrepõem ao intervalo
  * [from, to]. Usado por generateSlots para marcar slots ocupados.
+ * Chamar dentro de withTenant(clinicId, ...) — filtra por professionalId,
+ * que por si só já pertence a uma clínica, mas exige contexto de tenant
+ * pra RLS liberar a leitura.
  */
 export async function getConfirmedBookingsInRange(
+  tx: Transaction,
   professionalId: string,
   from: Date,
   to: Date,
 ): Promise<Array<{ startsAt: Date; endsAt: Date }>> {
-  return db
+  return tx
     .select({ startsAt: bookings.startsAt, endsAt: bookings.endsAt })
     .from(bookings)
     .where(
@@ -153,8 +167,13 @@ export async function getConfirmedBookingsInRange(
  * Insere um novo booking. Lança erro com code "23505" se o slot já estiver
  * ocupado (violação do unique partial index). O chamador deve capturar e
  * retornar mensagem amigável ao paciente.
+ *
+ * O booking wizard público resolve a clínica pelo slug primeiro (fora de
+ * contexto de tenant), depois chama isto dentro de
+ * `withTenant(clinicId, tx => createBooking(tx, input))`.
  */
 export async function createBooking(
+  tx: Transaction,
   input: CreateBookingInput,
 ): Promise<{ id: string; cancelToken: string }> {
   const values: NewBooking = {
@@ -169,7 +188,7 @@ export async function createBooking(
     status: "confirmed",
   };
 
-  const rows = await db
+  const rows = await tx
     .insert(bookings)
     .values(values)
     .returning({ id: bookings.id, cancelToken: bookings.cancelToken });
@@ -179,6 +198,7 @@ export async function createBooking(
 
 /**
  * Remarca um booking pelo cancel_token (mantém o mesmo id e token).
+ * Chamar dentro de withBookingToken(cancelToken, ...).
  *
  * Lança erro com code "23505" se o novo slot conflita com outro booking
  * confirmado do mesmo profissional (unique partial index).
@@ -186,13 +206,16 @@ export async function createBooking(
  * Lança erro genérico se booking não existir, não pertencer à clínica,
  * ou não estiver "confirmed".
  */
-export async function rescheduleBookingByToken(input: {
-  cancelToken: string;
-  clinicId: string;
-  newStartsAt: Date;
-  newEndsAt: Date;
-}): Promise<boolean> {
-  const result = await db
+export async function rescheduleBookingByToken(
+  tx: Transaction,
+  input: {
+    cancelToken: string;
+    clinicId: string;
+    newStartsAt: Date;
+    newEndsAt: Date;
+  },
+): Promise<boolean> {
+  const result = await tx
     .update(bookings)
     .set({
       startsAt: input.newStartsAt,
@@ -213,12 +236,14 @@ export async function rescheduleBookingByToken(input: {
 /**
  * Cancela um booking pelo cancel_token. Só cancela se estiver "confirmed"
  * e pertencer à clínica informada (segurança extra). Retorna true se cancelou.
+ * Chamar dentro de withBookingToken(cancelToken, ...).
  */
 export async function cancelBookingByToken(
+  tx: Transaction,
   cancelToken: string,
   clinicId: string,
 ): Promise<boolean> {
-  const result = await db
+  const result = await tx
     .update(bookings)
     .set({ status: "cancelled" })
     .where(
@@ -258,15 +283,19 @@ export type AgendaItem = {
  * ordenados por horário. Aceita filtros opcionais por profissional e por
  * status (lista de status — se vazia, retorna todos).
  *
- * Inclui join com professionals e services.
+ * Inclui join com professionals e services. Chamar dentro de
+ * withTenant(clinicId, ...).
  */
-export async function listBookingsInRange(input: {
-  clinicId: string;
-  from: Date;
-  to: Date;
-  professionalId?: string | null;
-  statuses?: BookingStatus[];
-}): Promise<AgendaItem[]> {
+export async function listBookingsInRange(
+  tx: Transaction,
+  input: {
+    clinicId: string;
+    from: Date;
+    to: Date;
+    professionalId?: string | null;
+    statuses?: BookingStatus[];
+  },
+): Promise<AgendaItem[]> {
   const { clinicId, from, to, professionalId, statuses } = input;
 
   const whereClauses = [
@@ -281,7 +310,7 @@ export async function listBookingsInRange(input: {
     whereClauses.push(inArray(bookings.status, statuses));
   }
 
-  const rows = await db
+  const rows = await tx
     .select({
       id: bookings.id,
       startsAt: bookings.startsAt,
@@ -321,15 +350,19 @@ export async function listBookingsInRange(input: {
 
 /**
  * Lista paginada de bookings de uma clínica para a tela /consultas.
- * Ordenado por startsAt DESC (mais recentes primeiro). Aceita filtros opcionais.
+ * Ordenado por startsAt DESC (mais recentes primeiro). Aceita filtros
+ * opcionais. Chamar dentro de withTenant(clinicId, ...).
  */
-export async function listBookingsPaginated(input: {
-  clinicId: string;
-  page: number; // 1-indexed
-  pageSize: number;
-  professionalId?: string | null;
-  statuses?: BookingStatus[];
-}): Promise<{ rows: AgendaItem[]; total: number }> {
+export async function listBookingsPaginated(
+  tx: Transaction,
+  input: {
+    clinicId: string;
+    page: number; // 1-indexed
+    pageSize: number;
+    professionalId?: string | null;
+    statuses?: BookingStatus[];
+  },
+): Promise<{ rows: AgendaItem[]; total: number }> {
   const { clinicId, page, pageSize, professionalId, statuses } = input;
 
   const whereClauses = [eq(bookings.clinicId, clinicId)];
@@ -344,7 +377,7 @@ export async function listBookingsPaginated(input: {
   const offset = Math.max(0, (page - 1) * pageSize);
 
   const [rows, [{ value: total }]] = await Promise.all([
-    db
+    tx
       .select({
         id: bookings.id,
         startsAt: bookings.startsAt,
@@ -366,10 +399,7 @@ export async function listBookingsPaginated(input: {
       .orderBy(desc(bookings.startsAt))
       .limit(pageSize)
       .offset(offset),
-    db
-      .select({ value: count() })
-      .from(bookings)
-      .where(whereExpr),
+    tx.select({ value: count() }).from(bookings).where(whereExpr),
   ]);
 
   return {
@@ -418,11 +448,20 @@ export type ReminderBooking = {
  *   - patient_phone está preenchido (sempre no nosso schema, mas por segurança)
  *
  * Inclui join com clinic, professional e service para montar a mensagem.
+ *
+ * Cruza TODAS as clínicas de propósito (é o job que dispara lembretes
+ * pra qualquer clínica com consulta em ~24h) — por isso NÃO roda dentro
+ * de withTenant. Chamar passando o cliente dedicado de
+ * lib/db/cron.ts (role `app_cron`, com policies de leitura cross-tenant
+ * só pra essa role — ver 0002_real_tenant_rls.sql). Nunca passar o `db`
+ * global (role app_runtime) aqui — RLS vai simplesmente retornar vazio.
  */
-export async function getBookingsDueForReminder(): Promise<ReminderBooking[]> {
+export async function getBookingsDueForReminder(
+  db: DbClient,
+): Promise<ReminderBooking[]> {
   const now = new Date();
   const from = new Date(now.getTime() + 23 * 60 * 60 * 1000); // +23h
-  const to = new Date(now.getTime() + 25 * 60 * 60 * 1000);   // +25h
+  const to = new Date(now.getTime() + 25 * 60 * 60 * 1000); // +25h
 
   const rows = await db
     .select({
@@ -470,7 +509,10 @@ export async function getBookingsDueForReminder(): Promise<ReminderBooking[]> {
  * Marca o booking como "lembrete enviado" com o timestamp atual.
  * Usado logo após o envio bem-sucedido do WhatsApp.
  */
-export async function markReminderSent(bookingId: string): Promise<void> {
+export async function markReminderSent(
+  db: DbClient,
+  bookingId: string,
+): Promise<void> {
   await db
     .update(bookings)
     .set({ whatsappReminderSentAt: sql`now()` })
@@ -479,14 +521,18 @@ export async function markReminderSent(bookingId: string): Promise<void> {
 
 /**
  * Atualiza o status de um booking. Escopado por clinicId pra segurança.
- * Retorna o booking atualizado ou null se não encontrou.
+ * Retorna o booking atualizado ou null se não encontrou. Chamar dentro
+ * de withTenant(clinicId, ...).
  */
-export async function updateBookingStatus(input: {
-  bookingId: string;
-  clinicId: string;
-  newStatus: BookingStatus;
-}): Promise<Booking | null> {
-  const rows = await db
+export async function updateBookingStatus(
+  tx: Transaction,
+  input: {
+    bookingId: string;
+    clinicId: string;
+    newStatus: BookingStatus;
+  },
+): Promise<Booking | null> {
+  const rows = await tx
     .update(bookings)
     .set({ status: input.newStatus })
     .where(

@@ -12,6 +12,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { requireRole } from "@/lib/auth/guards";
+import { withTenant } from "@/lib/db/tenant";
 import { updateClinicFields } from "@/lib/db/queries/clinics";
 
 // String não-vazia ou null. Aceita string vazia do form, normaliza pra null.
@@ -75,7 +76,9 @@ export async function saveClinicAction(
   }
 
   try {
-    await updateClinicFields(user.clinicId, parsed.data);
+    await withTenant(user.clinicId, (tx) =>
+      updateClinicFields(tx, user.clinicId, parsed.data),
+    );
   } catch (err) {
     console.error("[saveClinicAction]", err);
     return { error: "Não foi possível salvar. Tente novamente." };

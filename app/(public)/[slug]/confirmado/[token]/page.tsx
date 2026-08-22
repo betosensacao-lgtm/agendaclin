@@ -7,6 +7,7 @@ import { notFound } from "next/navigation";
 import { CheckCircle2 } from "lucide-react";
 
 import { buttonVariants } from "@/components/ui/button";
+import { withTenant } from "@/lib/db/tenant";
 import { getBookingByToken } from "@/lib/db/queries/bookings";
 import { getClinicBySlug } from "@/lib/db/queries/clinics";
 import { formatDuration } from "@/lib/format";
@@ -33,12 +34,13 @@ export default async function ConfirmadoPage({
 }) {
   const { slug, token } = await params;
 
-  const [clinic, booking] = await Promise.all([
-    getClinicBySlug(slug),
-    getBookingByToken(token),
-  ]);
+  const clinic = await getClinicBySlug(slug);
+  if (!clinic) notFound();
 
-  if (!clinic || !booking) notFound();
+  const booking = await withTenant(clinic.id, (tx) =>
+    getBookingByToken(tx, token),
+  );
+  if (!booking) notFound();
 
   const isCancelled = booking.status === "cancelled";
 

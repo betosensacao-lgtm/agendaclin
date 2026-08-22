@@ -7,6 +7,7 @@
  * Tudo escopado por clinic_id do usuário admin logado.
  */
 import { requireRole } from "@/lib/auth/guards";
+import { withTenant } from "@/lib/db/tenant";
 import { listBookingsInRange } from "@/lib/db/queries/bookings";
 import { listProfessionalsByClinic } from "@/lib/db/queries/professionals";
 import {
@@ -43,21 +44,25 @@ export default async function AgendaPage({
   const view: "day" | "week" = params.view === "week" ? "week" : "day";
   const professionalId = params.professionalId || null;
 
-  // Carrega profissionais para o filtro (todos da clínica, mesmo inativos).
-  const professionals = await listProfessionalsByClinic(user.clinicId);
-
   // Calcula range em UTC.
   const range =
     view === "week"
       ? weekRangeUtc(date, DEFAULT_TZ)
       : dayRangeUtc(date, DEFAULT_TZ);
 
-  const bookings = await listBookingsInRange({
-    clinicId: user.clinicId,
-    from: range.from,
-    to: range.to,
-    professionalId,
-  });
+  const { professionals, bookings } = await withTenant(
+    user.clinicId,
+    async (tx) => ({
+      // Carrega profissionais para o filtro (todos da clínica, mesmo inativos).
+      professionals: await listProfessionalsByClinic(tx, user.clinicId),
+      bookings: await listBookingsInRange(tx, {
+        clinicId: user.clinicId,
+        from: range.from,
+        to: range.to,
+        professionalId,
+      }),
+    }),
+  );
 
   // Agrupa por dia local (string YMD) para a visão semanal.
   const byDay = new Map<string, typeof bookings>();

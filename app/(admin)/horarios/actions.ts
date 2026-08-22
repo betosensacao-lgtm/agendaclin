@@ -10,12 +10,12 @@
  */
 "use server";
 
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { requireRole } from "@/lib/auth/guards";
-import { db } from "@/lib/db";
+import { withTenant } from "@/lib/db/tenant";
 import {
   createOverride,
   deleteOverride,
@@ -102,21 +102,32 @@ export async function saveWeeklyAvailabilityAction(
   const overlapMsg = detectOverlap(parsed.data.faixas);
   if (overlapMsg) return { error: overlapMsg };
 
-  // Confirma ownership do profissional via clinicId.
-  const [pro] = await db
-    .select({ id: professionals.id })
-    .from(professionals)
-    .where(eq(professionals.id, parsed.data.professionalId))
-    .limit(1);
-  if (!pro) return { error: "Profissional não encontrado" };
-
   try {
-    await replaceWeeklyAvailability(
-      parsed.data.professionalId,
-      user.clinicId,
-      parsed.data.faixas,
-    );
+    await withTenant(user.clinicId, async (tx) => {
+      // Confirma ownership do profissional via clinicId.
+      const [pro] = await tx
+        .select({ id: professionals.id })
+        .from(professionals)
+        .where(
+          and(
+            eq(professionals.id, parsed.data.professionalId),
+            eq(professionals.clinicId, user.clinicId),
+          ),
+        )
+        .limit(1);
+      if (!pro) throw new Error("PROFESSIONAL_NOT_FOUND");
+
+      await replaceWeeklyAvailability(
+        tx,
+        parsed.data.professionalId,
+        user.clinicId,
+        parsed.data.faixas,
+      );
+    });
   } catch (err) {
+    if (err instanceof Error && err.message === "PROFESSIONAL_NOT_FOUND") {
+      return { error: "Profissional não encontrado" };
+    }
     console.error("[saveWeeklyAvailabilityAction]", err);
     return { error: "Não foi possível salvar. Tente novamente." };
   }
@@ -185,20 +196,6 @@ export async function createOverrideAction(
     return { fieldErrors };
   }
 
-  // Se o scope é "professional", valida que o profissional é desta clínica.
-  if (parsed.data.scope === "professional" && parsed.data.professionalId) {
-    const [pro] = await db
-      .select({ id: professionals.id })
-      .from(professionals)
-      .where(eq(professionals.id, parsed.data.professionalId))
-      .limit(1);
-    if (!pro) {
-      return {
-        fieldErrors: { professionalId: "Profissional inválido" },
-      };
-    }
-  }
-
   // O datetime-local vem como "YYYY-MM-DDTHH:MM" sem fuso. Interpretamos
   // como horário local da clínica (America/Sao_Paulo no MVP) e
   // convertemos pra UTC antes de salvar.
@@ -206,17 +203,39 @@ export async function createOverrideAction(
   const TZ = "America/Sao_Paulo";
 
   try {
-    await createOverride({
-      clinicId: user.clinicId,
-      professionalId:
-        parsed.data.scope === "clinic"
-          ? null
-          : (parsed.data.professionalId ?? null),
-      startsAt: fromZonedTime(parsed.data.startsAt, TZ),
-      endsAt: fromZonedTime(parsed.data.endsAt, TZ),
-      reason: parsed.data.reason || null,
+    await withTenant(user.clinicId, async (tx) => {
+      // Se o scope é "professional", valida que o profissional é desta clínica.
+      if (parsed.data.scope === "professional" && parsed.data.professionalId) {
+        const [pro] = await tx
+          .select({ id: professionals.id })
+          .from(professionals)
+          .where(
+            and(
+              eq(professionals.id, parsed.data.professionalId),
+              eq(professionals.clinicId, user.clinicId),
+            ),
+          )
+          .limit(1);
+        if (!pro) throw new Error("PROFESSIONAL_NOT_FOUND");
+      }
+
+      await createOverride(tx, {
+        clinicId: user.clinicId,
+        professionalId:
+          parsed.data.scope === "clinic"
+            ? null
+            : (parsed.data.professionalId ?? null),
+        startsAt: fromZonedTime(parsed.data.startsAt, TZ),
+        endsAt: fromZonedTime(parsed.data.endsAt, TZ),
+        reason: parsed.data.reason || null,
+      });
     });
   } catch (err) {
+    if (err instanceof Error && err.message === "PROFESSIONAL_NOT_FOUND") {
+      return {
+        fieldErrors: { professionalId: "Profissional inválido" },
+      };
+    }
     console.error("[createOverrideAction]", err);
     return { error: "Não foi possível criar o bloqueio." };
   }
@@ -227,6 +246,6 @@ export async function createOverrideAction(
 
 export async function deleteOverrideAction(id: string): Promise<void> {
   const user = await requireRole("admin");
-  await deleteOverride(id, user.clinicId);
+  await withTenant(user.clinicId, (tx) => deleteOverride(tx, id, user.clinicId));
   revalidatePath("/horarios");
 }

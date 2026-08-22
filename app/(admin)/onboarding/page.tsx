@@ -7,6 +7,7 @@ import Link from "next/link";
 
 import { Button, buttonVariants } from "@/components/ui/button";
 import { requireRole } from "@/lib/auth/guards";
+import { withTenant } from "@/lib/db/tenant";
 import {
   getClinicById,
   getOnboardingStatus,
@@ -16,10 +17,12 @@ import { completeOnboardingAction } from "./actions";
 
 export default async function OnboardingPage() {
   const user = await requireRole("admin");
-  const [clinic, status] = await Promise.all([
-    getClinicById(user.clinicId),
-    getOnboardingStatus(user.clinicId),
-  ]);
+  const [clinic, status] = await withTenant(user.clinicId, (tx) =>
+    Promise.all([
+      getClinicById(tx, user.clinicId),
+      getOnboardingStatus(tx, user.clinicId),
+    ]),
+  );
 
   if (!clinic) return null;
 

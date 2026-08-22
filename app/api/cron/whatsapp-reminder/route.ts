@@ -14,6 +14,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { after } from "next/server";
 
+import { cronDb } from "@/lib/db/cron";
 import {
   getBookingsDueForReminder,
   markReminderSent,
@@ -41,7 +42,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const bookingsDue = await getBookingsDueForReminder();
+  const bookingsDue = await getBookingsDueForReminder(cronDb);
 
   if (bookingsDue.length === 0) {
     return NextResponse.json({ sent: 0, message: "Nenhum lembrete pendente." });
@@ -69,7 +70,7 @@ export async function GET(req: NextRequest) {
       const result = await sendWhatsAppText(booking.patientPhone, message);
 
       if (result.ok) {
-        await markReminderSent(booking.id);
+        await markReminderSent(cronDb, booking.id);
         sent++;
         console.log(
           `[cron:whatsapp-reminder] Enviado para booking ${booking.id} (${booking.patientPhone})`,

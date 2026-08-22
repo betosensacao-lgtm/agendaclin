@@ -1,10 +1,13 @@
 /**
  * Queries de disponibilidade semanal e bloqueios pontuais (overrides).
  * Todas escopadas por clinic_id (multi-tenant ready).
+ *
+ * Tenant RLS: toda função recebe `tx` de withTenant(clinicId, ...) —
+ * ver lib/db/tenant.ts e drizzle/migrations/0002_real_tenant_rls.sql.
  */
 import { and, asc, eq, gte, isNull, or, sql } from "drizzle-orm";
 
-import { db } from "@/lib/db";
+import type { Transaction } from "@/lib/db/types";
 import {
   availabilityOverrides,
   professionals,
@@ -19,11 +22,12 @@ import {
 // -----------------------------------------------------------------------
 
 export async function getWeeklyAvailability(
+  tx: Transaction,
   professionalId: string,
   clinicId: string,
 ): Promise<WeeklyAvailability[]> {
   // Garante que o profissional pertence à clínica antes de retornar.
-  const [pro] = await db
+  const [pro] = await tx
     .select({ id: professionals.id })
     .from(professionals)
     .where(
@@ -35,7 +39,7 @@ export async function getWeeklyAvailability(
     .limit(1);
   if (!pro) return [];
 
-  return db
+  return tx
     .select()
     .from(weeklyAvailability)
     .where(eq(weeklyAvailability.professionalId, professionalId))
@@ -51,7 +55,8 @@ export type WeeklyFaixaInput = {
 /**
  * Substitui TODA a disponibilidade semanal do profissional pelas
  * faixas fornecidas. Idempotente — se receber lista vazia, deixa o
- * profissional sem disponibilidade. Roda em transação.
+ * profissional sem disponibilidade. Roda no mesmo `tx` do caller
+ * (já é atômico dentro do withTenant que envolve a chamada).
  *
  * O caller deve validar:
  *   - cada faixa tem start < end
@@ -59,12 +64,13 @@ export type WeeklyFaixaInput = {
  *   - profissional pertence à clínica do usuário
  */
 export async function replaceWeeklyAvailability(
+  tx: Transaction,
   professionalId: string,
   clinicId: string,
   faixas: WeeklyFaixaInput[],
 ): Promise<void> {
   // Re-checa ownership pra defesa em profundidade.
-  const [pro] = await db
+  const [pro] = await tx
     .select({ id: professionals.id })
     .from(professionals)
     .where(
@@ -76,22 +82,20 @@ export async function replaceWeeklyAvailability(
     .limit(1);
   if (!pro) throw new Error("Profissional não encontrado");
 
-  await db.transaction(async (tx) => {
-    await tx
-      .delete(weeklyAvailability)
-      .where(eq(weeklyAvailability.professionalId, professionalId));
+  await tx
+    .delete(weeklyAvailability)
+    .where(eq(weeklyAvailability.professionalId, professionalId));
 
-    if (faixas.length > 0) {
-      await tx.insert(weeklyAvailability).values(
-        faixas.map((f) => ({
-          professionalId,
-          weekday: f.weekday,
-          startTime: f.startTime,
-          endTime: f.endTime,
-        })),
-      );
-    }
-  });
+  if (faixas.length > 0) {
+    await tx.insert(weeklyAvailability).values(
+      faixas.map((f) => ({
+        professionalId,
+        weekday: f.weekday,
+        startTime: f.startTime,
+        endTime: f.endTime,
+      })),
+    );
+  }
 }
 
 // -----------------------------------------------------------------------
@@ -105,9 +109,10 @@ export async function replaceWeeklyAvailability(
  *     os atrelados a um profissional específico.
  */
 export async function listFutureOverrides(
+  tx: Transaction,
   clinicId: string,
 ): Promise<AvailabilityOverride[]> {
-  return db
+  return tx
     .select()
     .from(availabilityOverrides)
     .where(
@@ -125,10 +130,11 @@ export async function listFutureOverrides(
  * Filtra por `endsAt >= now` por padrão.
  */
 export async function listOverridesAffectingProfessional(
+  tx: Transaction,
   professionalId: string,
   clinicId: string,
 ): Promise<AvailabilityOverride[]> {
-  return db
+  return tx
     .select()
     .from(availabilityOverrides)
     .where(
@@ -144,18 +150,20 @@ export async function listOverridesAffectingProfessional(
 }
 
 export async function createOverride(
+  tx: Transaction,
   input: NewAvailabilityOverride,
 ): Promise<AvailabilityOverride> {
-  const [row] = await db.insert(availabilityOverrides).values(input).returning();
+  const [row] = await tx.insert(availabilityOverrides).values(input).returning();
   return row;
 }
 
 /** Remove um override; só remove se pertence à clínica passada. */
 export async function deleteOverride(
+  tx: Transaction,
   id: string,
   clinicId: string,
 ): Promise<boolean> {
-  const rows = await db
+  const rows = await tx
     .delete(availabilityOverrides)
     .where(
       and(

@@ -5,13 +5,16 @@
 import { notFound } from "next/navigation";
 
 import { requireRole } from "@/lib/auth/guards";
+import { withTenant } from "@/lib/db/tenant";
 import { getClinicById } from "@/lib/db/queries/clinics";
 
 import { ClinicForm } from "./clinic-form";
 
 export default async function ClinicaPage() {
   const user = await requireRole("admin");
-  const clinic = await getClinicById(user.clinicId);
+  const clinic = await withTenant(user.clinicId, (tx) =>
+    getClinicById(tx, user.clinicId),
+  );
   if (!clinic) notFound();
 
   return (

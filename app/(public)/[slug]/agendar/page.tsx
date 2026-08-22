@@ -5,6 +5,7 @@
  */
 import { notFound } from "next/navigation";
 
+import { withTenant } from "@/lib/db/tenant";
 import {
   getClinicBySlug,
   getPublicProfessionalsByService,
@@ -23,21 +24,29 @@ export default async function AgendarPage({
   const clinic = await getClinicBySlug(slug);
   if (!clinic) notFound();
 
-  const services = await getPublicServices(clinic.id);
+  const { services, professionalsByService } = await withTenant(
+    clinic.id,
+    async (tx) => {
+      const services = await getPublicServices(tx, clinic.id);
 
-  // Pré-carrega profissionais por serviço (tipicamente 1-3 profissionais,
-  // sem impacto de N+1 relevante no MVP).
-  const professionalsByService: Record<
-    string,
-    { id: string; name: string }[]
-  > = {};
-  await Promise.all(
-    services.map(async (svc) => {
-      professionalsByService[svc.id] = await getPublicProfessionalsByService(
-        clinic.id,
-        svc.id,
+      // Pré-carrega profissionais por serviço (tipicamente 1-3
+      // profissionais, sem impacto de N+1 relevante no MVP).
+      const professionalsByService: Record<
+        string,
+        { id: string; name: string }[]
+      > = {};
+      await Promise.all(
+        services.map(async (svc) => {
+          professionalsByService[svc.id] = await getPublicProfessionalsByService(
+            tx,
+            clinic.id,
+            svc.id,
+          );
+        }),
       );
-    }),
+
+      return { services, professionalsByService };
+    },
   );
 
   return (

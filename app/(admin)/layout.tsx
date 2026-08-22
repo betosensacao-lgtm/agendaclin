@@ -7,6 +7,7 @@ import Link from "next/link";
 
 import { buttonVariants } from "@/components/ui/button";
 import { requireRole } from "@/lib/auth/guards";
+import { withTenant } from "@/lib/db/tenant";
 import { getClinicById } from "@/lib/db/queries/clinics";
 
 export default async function AdminLayout({
@@ -15,7 +16,9 @@ export default async function AdminLayout({
   children: React.ReactNode;
 }) {
   const user = await requireRole("admin");
-  const clinic = await getClinicById(user.clinicId);
+  const clinic = await withTenant(user.clinicId, (tx) =>
+    getClinicById(tx, user.clinicId),
+  );
   const showOnboardingBanner =
     clinic !== null && clinic.onboardingCompleted === false;
 

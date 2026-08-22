@@ -4,6 +4,7 @@
  * pra popular o multi-select do form.
  */
 import { requireRole } from "@/lib/auth/guards";
+import { withTenant } from "@/lib/db/tenant";
 import { listProfessionalsByClinic } from "@/lib/db/queries/professionals";
 import { listServicesByClinic } from "@/lib/db/queries/services";
 
@@ -11,10 +12,12 @@ import { ProfessionalsPanel } from "./professionals-panel";
 
 export default async function ProfissionaisPage() {
   const user = await requireRole("admin");
-  const [professionals, allServices] = await Promise.all([
-    listProfessionalsByClinic(user.clinicId),
-    listServicesByClinic(user.clinicId),
-  ]);
+  const [professionals, allServices] = await withTenant(user.clinicId, (tx) =>
+    Promise.all([
+      listProfessionalsByClinic(tx, user.clinicId),
+      listServicesByClinic(tx, user.clinicId),
+    ]),
+  );
 
   // Para o multi-select no form, mostramos apenas serviços ativos.
   const activeServices = allServices.filter((s) => s.active);
