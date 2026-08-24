@@ -1,3 +1,10 @@
+-- NOTA (2026-08-22): as policies tenant-scoped criadas aqui foram
+-- posteriormente endurecidas pela 0003_harden_rls_nullif.sql, que troca
+-- `current_setting('app.clinic_id', true)::uuid` por
+-- `nullif(current_setting('app.clinic_id', true), '')::uuid`. Não edite
+-- esta migration — ela já está aplicada em produção; o estado corrente das
+-- policies é 0002 + 0003.
+--
 -- Substitui o RLS "deny-all" decorativo (0001) por isolamento real por
 -- tenant. O problema do 0001: toda policy é avaliada só para os roles
 -- `anon`/`authenticated` do PostgREST — o app nunca usa essas roles, ele
