@@ -4,7 +4,7 @@
  * Docs: https://developer.z-api.io/
  *
  * Variáveis de ambiente necessárias:
- *   ZAPI_INSTANCE_ID  — ID da instância (ex.: 3D5AFE7AE57B3C86A25CA99F)
+ *   ZAPI_INSTANCE_ID  — ID da instância (string hex, obter no dashboard Z-API)
  *   ZAPI_TOKEN        — Token de segurança da instância
  *   ZAPI_CLIENT_TOKEN — Client-Token exigido em algumas instâncias (opcional)
  *
